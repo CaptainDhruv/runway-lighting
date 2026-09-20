@@ -161,6 +161,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .btn{background:var(--card-2);border:1px solid var(--line);color:var(--ink-2);
   font-family:var(--ui);font-size:15px;min-height:40px;padding:8px 13px;border-radius:7px;cursor:pointer}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{background:#9c5709;color:#fff}
+@keyframes standpulse{0%,100%{opacity:.35}50%{opacity:1}}
+.standhl{animation:standpulse 1.6s ease-in-out infinite}
 
 /* ── stage ────────────────────────────────────────────── */
 .stage{min-width:0}
@@ -174,7 +178,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .board.day{background:#7d886e}
 .scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
 svg{display:block;width:100%;height:auto}
-#scene{max-width:980px;margin:0 auto}
+#scene{max-width:1100px;margin:0 auto}
 
 .legend{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
   gap:7px 24px;max-width:1040px}
@@ -197,13 +201,13 @@ svg{display:block;width:100%;height:auto}
   .legend{grid-template-columns:1fr;max-width:none}
   .hint{display:block}
   /* keep the diagrams legible: scroll them sideways rather than shrink to nothing */
-  #scene{min-width:660px}
+  #scene{min-width:780px}
   #pilot{min-width:520px}
 }
 @media (max-width:420px){
   .checks{grid-template-columns:1fr}
   .seg button{min-width:0;font-size:14px;padding:7px 3px}
-  #scene{min-width:580px}
+  #scene{min-width:700px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -219,6 +223,33 @@ svg{display:block;width:100%;height:auto}
 <div class="shell">
 
   <aside class="rail">
+
+    <details class="block" open>
+      <summary>Arrival simulation</summary>
+      <div class="btnrow">
+        <button class="btn primary" id="simStart">Start landing</button>
+        <button class="btn" id="simPause">Pause</button>
+        <button class="btn" id="simReset">Reset</button>
+      </div>
+      <div class="seg" id="segSpeed" style="margin-top:9px">
+        <button data-v="1" aria-pressed="false">1&times;</button>
+        <button data-v="2" aria-pressed="false">2&times;</button>
+        <button data-v="4" aria-pressed="true">4&times;</button>
+        <button data-v="8" aria-pressed="false">8&times;</button>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <span>Assigned stand</span>
+        <select id="simStand" style="width:84px">
+          <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+        </select>
+      </div>
+      <label class="sw" style="margin-top:4px"><span>Cockpit follows the aircraft</span><input type="checkbox" id="simFollow" checked><span class="track"></span></label>
+      <div class="readout" style="margin-top:10px">
+        <div class="rline"><span>Phase</span><span id="simPhase">&mdash;</span></div>
+        <div class="rline"><span>Ground speed</span><span id="simSpd">&mdash;</span></div>
+        <div class="rline"><span>Height</span><span id="simHgt">&mdash;</span></div>
+      </div>
+    </details>
 
     <details class="block" open>
       <summary>Time of day</summary>
@@ -316,6 +347,7 @@ svg{display:block;width:100%;height:auto}
         <label class="sw"><span>Slope indicator</span><input type="checkbox" data-c="papi" checked><span class="track"></span></label>
         <label class="sw"><span>Taxiway</span><input type="checkbox" data-c="taxiway" checked><span class="track"></span></label>
         <label class="sw"><span>Stop bars</span><input type="checkbox" data-c="stopbar" checked><span class="track"></span></label>
+        <label class="sw"><span>Apron floodlighting</span><input type="checkbox" data-c="apron" checked><span class="track"></span></label>
         <label class="sw"><span>REIL</span><input type="checkbox" data-c="reil"><span class="track"></span></label>
       </div>
     </details>
@@ -327,7 +359,9 @@ svg{display:block;width:100%;height:auto}
         <label><input type="checkbox" data-k="markings" checked> Paint</label>
         <label><input type="checkbox" data-k="signs" checked> Signs</label>
         <label><input type="checkbox" data-k="labels" checked> Callouts</label>
-        <label><input type="checkbox" data-k="ruler" checked> Distance ruler</label>
+        <label><input type="checkbox" data-k="ruler" checked> Distance signs</label>
+        <label><input type="checkbox" data-k="surround" checked> Surroundings</label>
+        <label><input type="checkbox" data-k="map" checked> Map layer</label>
         <label><input type="checkbox" data-k="cockpit" checked> Cockpit view</label>
       </div>
     </details>
@@ -369,7 +403,7 @@ svg{display:block;width:100%;height:auto}
         <p>3000 m runway, 45 m wide. Lateral scale exaggerated so the fixtures stay readable.</p>
       </div>
       <div class="board night" id="boardPlan">
-        <div class="scroller"><svg id="scene" viewBox="0 0 960 1070" role="img" aria-label="Plan view of the approach and runway lighting"></svg></div>
+        <div class="scroller"><svg id="scene" viewBox="0 0 1160 1130" role="img" aria-label="Plan view of the approach and runway lighting"></svg></div>
       </div>
       <p class="hint">Swipe the diagram sideways to see the full width.</p>
       <div class="legend">
@@ -401,7 +435,7 @@ svg{display:block;width:100%;height:auto}
 "use strict";
 
 /* ═══════════ geometry, plan view ═══════════ */
-const SX = 3.0, SY = 0.24, CX = 330, YTHR = 790;
+const SX = 3.0, SY = 0.24, CX = 330, YTHR = 860;
 const RWY_LEN = 3000, HALF_W = 22.5;
 const X = m => CX + m*SX;
 const Y = m => YTHR - m*SY;
@@ -551,10 +585,11 @@ const RVR_STEPS = [null,1500,800,550,350,200,125,75];
 const state = {
   mode:'night', als:'icaoCat23', cat:'IIIA', gsi:'papi', papi:'onPath',
   eyeH:61, rvrIdx:0, lvp:false, desig:'09L',
+  sim:{on:false, s:0, stand:3, speed:4, follow:true},
   fail:{approach:false,tdz:false,centreline:false,edge:false,rvrSys:false,stopbar:false},
-  show:{taxiway:true,markings:true,signs:true,labels:true,ruler:true,cockpit:true},
+  show:{taxiway:true,markings:true,signs:true,labels:true,ruler:true,cockpit:true,surround:true,map:true},
   lights:{master:true,approach:true,flashers:true,threshold:true,edge:true,
-          centreline:true,tdz:true,papi:true,taxiway:true,stopbar:true,reil:false}
+          centreline:true,tdz:true,papi:true,taxiway:true,stopbar:true,apron:true,reil:false}
 };
 const lit = k => state.lights.master && state.lights[k];
 const rvrM = () => RVR_STEPS[state.rvrIdx];
@@ -611,6 +646,7 @@ function callout(g, text, lx, ly, tx, ty, anchor){
    is exaggerated, so a world-width taxiway running across the page would collapse
    to a sliver. The cockpit view keeps the true width, where it matters. */
 const TW_PX = 15;
+const STANDS = [600,1050,1500,1950,2400];
 function toPx(pt){ return {x:X(pt[0]), y:Y(pt[1])}; }
 function perpPx(ux, uy){
   const dx = ux*SX, dy = -uy*SY, L = Math.hypot(dx,dy) || 1;
@@ -650,14 +686,17 @@ function renderPlan(){
   if (lit('threshold')) drawEnd();
   if (state.show.taxiway && lit('taxiway')) drawTaxiwayLights();
   if (state.lvp && state.show.taxiway && lit('taxiway')) drawLvpLights();
+  if (state.show.surround && lit('apron')) drawApronLights();
   if (state.gsi !== 'none' && lit('papi')) drawSlopeIndicator();
   if (lit('reil')) drawReil();
   if (state.show.ruler) drawRuler();
   if (state.show.labels) drawCallouts(sys);
+  if (state.show.map) drawMapFurniture(night);
+  drawAircraft();
   drawHaze();
   if (!state.lights.master){
     const g = group('off');
-    label(g,'Airfield lighting off', 480, 34, 'middle',
+    label(g,'Airfield lighting off', 580, 34, 'middle',
           state.mode==='night' ? '#6b7f8f' : '#20281a', 15);
   }
 
@@ -667,7 +706,9 @@ function renderPlan(){
 
 function drawGround(night){
   const g = group('ground');
-  el('rect',{x:0,y:0,width:960,height:1070,fill: night?'#05080b':'#7d886e'},g);
+  el('rect',{x:0,y:0,width:1160,height:1130,fill: night?'#05080b':'#7d886e'},g);
+  if (state.show.map) drawMap(night, g);
+  if (state.show.surround) drawSurroundings(night, g);
   if (state.lvp){  // ILS sensitive area
     el('rect',{x:X(-SENS_X),y:Y(RWY_LEN),width:SENS_X*2*SX,height:(RWY_LEN+900)*SY,
                fill: night?'#0b1219':'#8b9779',opacity:0.55},g);
@@ -910,6 +951,34 @@ function drawLvpLights(){
   });
 }
 
+function drawApronLights(){
+  const g = group('apron');
+  const night = state.mode === 'night';
+  // floodlight masts along the apron edge, with their light pools
+  const defs = el('defs',{},g);
+  [500,1100,1700,2300].forEach(function(d,i){
+    if (night){
+      const rg = el('radialGradient',{id:'flood'+i,cx:'50%',cy:'50%',r:'50%'},defs);
+      el('stop',{offset:'0%','stop-color':'#ffe9c2','stop-opacity':0.30},rg);
+      el('stop',{offset:'100%','stop-color':'#ffe9c2','stop-opacity':0},rg);
+      el('ellipse',{cx:X(205),cy:Y(d),rx:105,ry:76,fill:'url(#flood'+i+')'},g);
+    }
+    el('rect',{x:X(172)-2,y:Y(d)-13,width:4,height:26,rx:1,
+               fill: night?'#2c3a46':'#9aa2a6'},g);
+    light(g, 172, d+3, C.white, 2.2);
+  });
+  // apron taxilane centreline, yellow
+  for (let d=380; d<=2620; d+=30) light(g, 178, d, C.yellow, 1.9);
+  // stand lead-in lights
+  STANDS.forEach(function(d, i){
+    for (let x=184; x<=230; x+=9)
+      light(g, x, d, (i+1)===state.sim.stand ? C.yellow : C.yellow, 1.8);
+  });
+  // lit terminal windows
+  if (night) for (let d=900; d<=2100; d+=150)
+    el('rect',{x:X(238),y:Y(d)-2,width:8,height:4,fill:'#ffe4b0',opacity:0.55},g);
+}
+
 function drawSlopeIndicator(){
   const g = group('papi');
   const housing = state.mode==='night' ? '#161d24' : '#2f3630';
@@ -940,34 +1009,155 @@ function drawReil(){
   });
 }
 
-function drawRuler(){
-  const g = group('ruler');
-  const col = state.mode==='night' ? '#5d7183' : '#2a3022';
-  el('line',{x1:X(-28),y1:Y(0),x2:X(-28),y2:Y(RWY_LEN),stroke:col,'stroke-width':0.6,opacity:0.6},g);
-  for (let d=0; d<=RWY_LEN; d+=300){
-    const rem = RWY_LEN-d;
-    const key = (rem===900||rem===300);
-    el('line',{x1:X(-28),y1:Y(d),x2:X(-24),y2:Y(d),stroke:key?C.yellow:col,'stroke-width':key?1.1:0.6,opacity:0.85},g);
-    label(g, String(rem), X(-29), Y(d)+3.5, 'end', key ? C.yellow : col, 10);
+function seeded(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function drawMap(night, parent){
+  const g = group('map', parent);
+  const r = seeded(20260920);
+  const cols = night ? ['#070b0e','#0a0f13','#060a0d','#0b1014','#080d10']
+                     : ['#7f8a6b','#8d9774','#75805e','#94a17a','#6e7a5c','#a49a76','#879370'];
+  for (let i=0;i<30;i++){
+    const cx = r()*1160, cy = r()*1130;
+    const w = 80 + r()*240, h = 60 + r()*210;
+    el('rect',{x:cx, y:cy, width:w, height:h,
+               fill:cols[Math.floor(r()*cols.length)],
+               opacity: night ? 0.85 : 0.5,
+               transform:'rotate('+((r()*26)-13).toFixed(1)+' '+cx.toFixed(1)+' '+cy.toFixed(1)+')'},g);
   }
-  label(g,'metres remaining', X(-29), Y(RWY_LEN)-8, 'end', col, 10);
+  // a couple of roads running past the aerodrome
+  el('path',{d:'M -20 1010 Q 300 962 640 1006 T 1180 958', fill:'none',
+             stroke: night?'#141c23':'#cfc7ae','stroke-width':4.5,opacity:0.8},g);
+  el('path',{d:'M 1180 140 Q 980 300 1010 560 T 900 1130', fill:'none',
+             stroke: night?'#141c23':'#cfc7ae','stroke-width':3.5,opacity:0.7},g);
+  // aerodrome boundary fence
+  el('rect',{x:16,y:16,width:1128,height:1098,rx:28,fill:'none',
+             stroke: night?'#1d2831':'#b6b09c','stroke-width':1.3,
+             'stroke-dasharray':'9 6',opacity:0.85},g);
+}
+
+function drawMapFurniture(night){
+  const g = group('mapfx');
+  const ink = night ? '#8ea1af' : '#1e2a18';
+  const pad = night ? 'rgba(8,14,20,.6)' : 'rgba(255,255,255,.72)';
+
+  // north arrow, oriented from the runway designator
+  const n = parseInt(state.desig,10);
+  const brg = isNaN(n) ? 90 : ((n*10) % 360);
+  const cx = 1086, cy = 92;
+  el('circle',{cx:cx,cy:cy,r:27,fill:pad,stroke:ink,'stroke-width':0.8},g);
+  const rose = el('g',{transform:'rotate('+(-brg)+' '+cx+' '+cy+')'},g);
+  el('polygon',{points:[cx,cy-21,cx+6.5,cy+5,cx,cy-1.5,cx-6.5,cy+5].join(' '),fill:ink},rose);
+  el('line',{x1:cx,y1:cy+5,x2:cx,y2:cy+19,stroke:ink,'stroke-width':1,opacity:0.6},rose);
+  label(g,'N', cx, cy-29, 'middle', ink, 11);
+  label(g,'RWY '+state.desig+'  '+('00'+brg).slice(-3)+'°M', cx, cy+43, 'middle', ink, 10);
+
+  // scale bar — longitudinal only, the lateral scale is exaggerated
+  const x0 = 40, y0 = 1078, len = 500*SY;
+  el('rect',{x:x0-16,y:y0-len-26,width:96,height:len+40,rx:6,fill:pad},g);
+  el('line',{x1:x0,y1:y0,x2:x0,y2:y0-len,stroke:ink,'stroke-width':1.4},g);
+  [0,250,500].forEach(function(m){
+    el('line',{x1:x0-4,y1:y0-m*SY,x2:x0+4,y2:y0-m*SY,stroke:ink,'stroke-width':1.2},g);
+    label(g, String(m), x0+8, y0-m*SY+3.5, 'start', ink, 9);
+  });
+  label(g,'m along runway', x0-12, y0-len-12, 'start', ink, 9);
+}
+
+function drawSurroundings(night, parent){
+  const g = group('surround', parent);
+  const conc  = night?'#0d1218':'#6d7377';
+  const strip = night?'#070b0e':'#879270';
+  const ink   = night?'#7f909d':'#20291a';
+
+  // graded runway strip
+  el('rect',{x:X(-75),y:Y(3060),width:150*SX,height:3120*SY,fill:strip,opacity:0.55},g);
+
+  // apron, its two links off the parallel taxiway, and the terminal
+  el('rect',{x:X(175),y:Y(2650),width:60*SX,height:2300*SY,fill:conc},g);
+  [700,2300].forEach(function(d){
+    segQuadsPx([[130,d],[178,d]]).forEach(function(q){
+      el('polygon',{points:q.map(pt => pt[0]+','+pt[1]).join(' '),fill:conc},g);
+    });
+  });
+  el('rect',{x:X(238),y:Y(2200),width:30*SX,height:1400*SY,rx:3,
+             fill: night?'#1b2630':'#d3d7da',stroke: night?'#2b3a47':'#b3b8bc','stroke-width':0.8},g);
+  for (let d=900; d<=2100; d+=150)
+    el('line',{x1:X(238),y1:Y(d),x2:X(268),y2:Y(d),
+               stroke: night?'#2b3a47':'#b9bec2','stroke-width':0.6},g);
+  label(g,'Terminal', X(253), Y(1500), 'middle', ink, 12);
+
+  // stands, with lead-in lines
+  const yl = night?'#8a7a35':'#e8c437';
+  STANDS.forEach(function(d,i){
+    const target = (i+1) === state.sim.stand;
+    if (target){
+      el('rect',{x:X(176),y:Y(d)-16,width:58,height:32,rx:3,fill:'none',
+                 stroke:'#f0a93c','stroke-width':1.6,opacity:0.95,class:'standhl'},g);
+      label(g,'Stand '+(i+1), X(205), Y(d)-21, 'middle', night?'#f0a93c':'#8a5406', 11);
+    }
+    el('line',{x1:X(178),y1:Y(d),x2:X(233),y2:Y(d),
+               stroke: target ? '#f0a93c' : yl,'stroke-width': target?1.6:1.1,
+               opacity: night?0.6:0.95},g);
+    label(g, String(i+1), X(176), Y(d)-4, 'end', ink, 9);
+  });
+  label(g,'Apron', X(205), Y(2550), 'middle', ink, 11);
+
+  // localiser array beyond the stop end
+  for (let i=-7;i<=7;i++)
+    el('rect',{x:X(i*3)-1.2,y:Y(3300)-7,width:2.4,height:14,rx:0.6,
+               fill: night?'#2c3a46':'#9aa2a6'},g);
+  el('rect',{x:X(30)-7,y:Y(3300)-5,width:14,height:10,rx:1.5,fill:conc},g);
+  label(g,'Localiser', X(0), Y(3300)-14, 'middle', ink, 11);
+
+  // glide path aerial abeam the aiming point
+  el('rect',{x:X(95)-2,y:Y(300)-17,width:4,height:34,rx:1,fill: night?'#2c3a46':'#9aa2a6'},g);
+  el('rect',{x:X(95)+6,y:Y(300)-4,width:12,height:8,rx:1.5,fill:conc},g);
+  label(g,'Glide path aerial', X(95)-8, Y(300)+3.5, 'end', ink, 11);
+
+  // windsock
+  const wx = X(-82), wy = Y(2900);
+  el('circle',{cx:wx,cy:wy,r:14,fill:'none',stroke:yl,'stroke-width':1,opacity:night?0.5:0.9},g);
+  el('line',{x1:wx,y1:wy,x2:wx,y2:wy-13,stroke: night?'#6b7a86':'#d8dbdd','stroke-width':1.2},g);
+  el('polygon',{points:[wx,wy-13,wx+16,wy-9,wx+16,wy-4,wx,wy-6].join(' '),
+                fill:'#e8703a',opacity:0.92},g);
+  label(g,'Windsock', wx, wy+26, 'middle', ink, 11);
+}
+
+function drawRuler(){          // distance-to-go signs down the left side
+  const g = group('ruler');
+  const board = state.mode==='night' ? '#10161c' : '#1b2026';
+  for (let rem=2700; rem>=300; rem-=300){
+    const d = RWY_LEN - rem, cy = Y(d), cx = X(-82);
+    el('rect',{x:cx-14,y:cy-6.5,width:28,height:13,rx:1.5,fill:board,
+               stroke:'#d9d3c6','stroke-width':0.5},g);
+    label(g, String(rem), cx, cy+3.5, 'middle',
+          (rem===900||rem===300) ? C.yellow : '#e9e4d8', 9);
+  }
+  label(g,'metres remaining', X(-82), Y(RWY_LEN)-10, 'middle',
+        state.mode==='night' ? '#6d7d8a' : '#25301c', 10);
 }
 
 function drawCallouts(sys){
   const g = group('labels');
-  const R = 430, RT = 782, L = 215;
+  const R = 450, RT = 762, L = 215;
   callout(g,'Runway end lights, red',        X(6),        Y(RWY_LEN), R, Y(RWY_LEN)-14,'start');
   callout(g,'Edge lights yellow, last 600 m',X(HALF_W),   Y(2700),    R, Y(2760),'start');
   callout(g,'Threshold and wing bars, green',X(HALF_W+9), Y(0),       R, Y(70),'start');
   if (state.show.taxiway){
-    callout(g,'Parallel taxiway A', X(130), Y(2600), RT, Y(2700),'start');
-    callout(g,'Rapid exit A3, lead-off lights',              X(80),  Y(2210), RT, Y(2380),'start');
-    callout(g,'Runway holding position, 90 m',                X(90),  Y(1317), RT, Y(1430),'start');
-    callout(g,'Entry A1 at the threshold',                    X(90),  Y(90),   RT, Y(190),'start');
-    if (state.lvp) callout(g,'Stop bar and guard lights', X(90), Y(2217), RT, Y(2090),'start');
-    callout(g,'90° exit B1',  X(-70), Y(1650), L, Y(1790),'end');
+    callout(g,'Parallel taxiway A', X(130), Y(2600), RT, Y(2760),'start');
+    callout(g,'Rapid exit A3',     X(80),  Y(2210), RT, Y(2380),'start');
+    callout(g,'Hold, 90 m',        X(90),  Y(1317), RT, Y(1430),'start');
+    callout(g,'Entry A1',          X(90),  Y(90),   RT, Y(190),'start');
+    if (state.lvp) callout(g,'Stop bar, guard lights', X(90), Y(2217), RT, Y(2020),'start');
+    callout(g,'90° exit B1',  X(-70), Y(1650), L, Y(1920),'end');
   }
-  callout(g,'Red and white, 900 m to go', X(0),  Y(2100), L, Y(2040),'end');
+  callout(g,'Red and white, 900 m to go', X(0),  Y(2100), L, Y(1980),'end');
   callout(g,'Touchdown zone barrettes',   X(-7), Y(660),  L, Y(740),'end');
   callout(g,(state.gsi==='vasi'?'VASI, abeam the aiming point':'PAPI, abeam the aiming point'),
             X(-(HALF_W+15)), Y(300), L, Y(400),'end');
@@ -987,7 +1177,7 @@ function drawHaze(){
   const col = state.mode==='night' ? '#2a3742' : '#c9d0cc';
   el('stop',{offset:'0%','stop-color':col,'stop-opacity':0},rg);
   el('stop',{offset:'100%','stop-color':col,'stop-opacity':1},rg);
-  el('rect',{x:0,y:0,width:960,height:1070,fill:'url(#hz)',opacity:0.12+amt*0.6},g);
+  el('rect',{x:0,y:0,width:1160,height:1130,fill:'url(#hz)',opacity:0.12+amt*0.6},g);
 }
 
 /* ═══════════ cockpit view ═══════════ */
@@ -999,12 +1189,15 @@ function eyePos(){
   return {y: 300 - g, h: state.eyeH, ang:ang};
 }
 function proj(xm, ym, zm, eye){
-  const dy = ym - eye.y;
+  const rx = xm - (eye.x || 0), ry = ym - eye.y;
+  const hd = eye.hdg || 0, ch = Math.cos(hd), sh = Math.sin(hd);
+  const dy =  ry*ch + rx*sh;          // forward
+  const dxs = rx*ch - ry*sh;          // right of the nose
   if (dy < 30) return null;
-  const sx = PV.cx + PV.f*xm/dy;
+  const sx = PV.cx + PV.f*dxs/dy;
   const sy = PV.cy + PV.f*(eye.h - (zm||0))/dy;
   if (sy > PV.H + 120 || sx < -400 || sx > PV.W+400) return null;
-  return {x:sx, y:sy, d:Math.sqrt(dy*dy + xm*xm + eye.h*eye.h), dy:dy};
+  return {x:sx, y:sy, d:Math.sqrt(dy*dy + dxs*dxs + eye.h*eye.h), dy:dy};
 }
 function fogAlpha(d){
   const R = rvrEff();
@@ -1016,7 +1209,7 @@ function renderPilot(){
   if (!state.show.cockpit){ document.getElementById('pilotSection').hidden = true; return; }
   document.getElementById('pilotSection').hidden = false;
 
-  const eye = eyePos();
+  const eye = (state.sim.follow && state.sim.s > 0) ? simEye() : eyePos();
   const night = state.mode === 'night';
   const sys = ALS[state.als];
 
@@ -1191,23 +1384,24 @@ function quad(x1,y1,x2,y2,x3,y3,x4,y4,eye){
 function drawHud(drawn, eye){
   const g = group('pvhud', pv);
   const col = state.mode==='night' ? '#9fb3c2' : '#17200f';
-  const ft = Math.round(state.eyeH/FT);
+  const ft = Math.round(eye.h/FT);
   label(g,'Radio height '+ft+' ft', 16, 26, 'start', col, 14);
   label(g,'RVR '+(rvrM() ? rvrM()+' m' : 'unrestricted'), 16, 44, 'start', col, 14);
-  label(g,'Glide path '+eye.ang.toFixed(1)+'°', 16, 62, 'start', col, 14);
+  label(g, eye.sim ? eye.sim.ph : 'Glide path '+eye.ang.toFixed(1)+'°', 16, 62, 'start', col, 14);
   const dThr = Math.round(-eye.y);
   label(g, dThr > 0 ? dThr+' m to the threshold' : Math.abs(dThr)+' m past the threshold',
         16, 80, 'start', col, 14);
 
-  const vis = visualRef(drawn);
+  const vis = visualRef(drawn, eye.h);
   label(g, vis.text, PV.W-16, 26, 'end', vis.ok ? '#8fe3ae' : '#ffb3a1', 14);
   label(g, vis.sub,  PV.W-16, 44, 'end', col, 13);
 }
 
-function visualRef(drawn){
+function visualRef(drawn, eyeH){
+  eyeH = (eyeH === undefined) ? state.eyeH : eyeH;
   const seen = {};
   drawn.forEach(function(o){ if (o.a > 0.12) seen[o.k] = (seen[o.k]||0)+1; });
-  const atDh = state.eyeH <= (state.cat==='I'?62:state.cat==='II'?31:16);
+  const atDh = eyeH <= (state.cat==='I'?62:state.cat==='II'?31:16);
   const hasApproach = (seen.approach||0) >= 6;
   const hasThr = (seen.threshold||0) >= 3;
   const hasTdz = (seen.tdz||0) >= 3;
@@ -1226,6 +1420,140 @@ function visualRef(drawn){
   }
   if (hasCl || hasTdz) return {ok:true, text:'Continue', sub:'Centreline segment in sight — CAT III visual segment met'};
   return {ok:false, text:'Go around', sub:'No usable visual segment'};
+}
+
+/* ═══════════ arrival simulation ═══════════ */
+const TAN3 = Math.tan(3*Math.PI/180);
+const SIM_START = -1120;
+
+function simPath(){
+  const sd = STANDS[state.sim.stand-1];
+  return [
+    {p:[[0,SIM_START],[0,350]],                          v:70, v1:70, ph:'Final approach'},
+    {p:[[0,350],[0,2040]],                               v:70, v1:13, ph:'Landing roll'},
+    {p:[[0,2040],[12.4,2074],[22.5,2100],[130,2286]],    v:12, v1:10, ph:'Vacating via A3'},
+    {p:[[130,2286],[130,2300],[178,2300]],               v:9,  v1:8,  ph:'Taxiing on A'},
+    {p:[[178,2300],[178,sd]],                            v:8,  v1:6,  ph:'Apron taxilane'},
+    {p:[[178,sd],[230,sd]],                              v:4,  v1:0.4,ph:'Entering stand '+state.sim.stand}
+  ];
+}
+function segLen(seg){
+  let L=0;
+  for (let i=0;i<seg.p.length-1;i++)
+    L += Math.hypot(seg.p[i+1][0]-seg.p[i][0], seg.p[i+1][1]-seg.p[i][1]);
+  return L;
+}
+function simAt(dist){
+  const segs = simPath();
+  let acc = 0;
+  for (let i=0;i<segs.length;i++){
+    const L = segLen(segs[i]);
+    if (dist <= acc + L || i === segs.length-1){
+      let local = Math.min(dist - acc, L), run = 0;
+      const t = L ? local/L : 1;
+      for (let j=0;j<segs[i].p.length-1;j++){
+        const a = segs[i].p[j], b = segs[i].p[j+1];
+        const l = Math.hypot(b[0]-a[0], b[1]-a[1]);
+        if (local <= run + l || j === segs[i].p.length-2){
+          const u = l ? Math.min((local-run)/l, 1) : 1;
+          const x = a[0] + (b[0]-a[0])*u, y = a[1] + (b[1]-a[1])*u;
+          const ux = (b[0]-a[0])/(l||1), uy = (b[1]-a[1])/(l||1);
+          const v = segs[i].v + (segs[i].v1 - segs[i].v)*t;
+          return {x:x, y:y, ux:ux, uy:uy, v:Math.max(v,0), ph:segs[i].ph,
+                  h:height(y), done:(i===segs.length-1 && t>=1), total:acc+L};
+        }
+        run += l;
+      }
+    }
+    acc += L;
+  }
+  return null;
+}
+function height(y){
+  if (y >= 350) return 0;
+  if (y <= 0)   return (300 - y)*TAN3;
+  const h0 = 300*TAN3;
+  return h0 * Math.pow(1 - y/350, 2);      // flare
+}
+function simTotal(){ return simPath().reduce((a,sg) => a + segLen(sg), 0); }
+
+let acNode = null, acLabel = null;
+function drawAircraft(){
+  const st = state.sim;
+  if (!st.on && st.s <= 0) { acNode = null; return; }
+  const g = group('ac');
+  acNode = el('g',{},g);
+  const body = state.mode==='night' ? '#eef3f7' : '#ffffff';
+  el('path',{d:'M 0,-21 L 3,-11 L 3,-3 L 18,6 L 18,9.5 L 3,5 L 3,13 L 8,17.5 L 8,20 L 0,17.5 '+
+               'L -8,20 L -8,17.5 L -3,13 L -3,5 L -18,9.5 L -18,6 L -3,-3 L -3,-11 Z',
+             fill:body, stroke:'#26313a','stroke-width':0.8},acNode);
+  el('circle',{cx:-18,cy:8,r:1.8,fill:'#ff3b30'},acNode);       // port nav light
+  el('circle',{cx:18,cy:8,r:1.8,fill:'#16e06a'},acNode);        // starboard
+  el('circle',{cx:0,cy:20,r:1.6,fill:'#ffffff'},acNode);        // tail
+  acLabel = label(g,'', 0, 0, 'start', state.mode==='night' ? '#cfe0ec' : '#17210f', 11);
+  updateAircraft();
+}
+function updateAircraft(){
+  if (!acNode) return;
+  const st = simAt(state.sim.s);
+  if (!st) return;
+  const sx = st.ux*SX, sy = -st.uy*SY, L = Math.hypot(sx,sy) || 1;
+  const deg = Math.atan2(sx/L, -sy/L) * 180/Math.PI;
+  const px = X(st.x), py = Y(st.y);
+  acNode.setAttribute('transform','translate('+px+','+py+') rotate('+deg.toFixed(1)+')');
+  if (acLabel){
+    acLabel.setAttribute('x', px + 26);
+    acLabel.setAttribute('y', py + 4);
+    acLabel.textContent = Math.round(st.v*1.94) + ' kt' +
+      (st.h > 0.5 ? '  ·  ' + Math.round(st.h/FT) + ' ft' : '');
+  }
+}
+function simEye(){
+  const st = simAt(state.sim.s);
+  const hd = Math.atan2(st.ux, st.uy);
+  return {x:st.x, y:st.y, h:Math.max(st.h, 4.5), hdg:hd, ang:3.0, sim:st};
+}
+
+let simRAF = null, simLast = 0, pilotClock = 0;
+function simFrame(ts){
+  if (!state.sim.on) return;
+  const dt = simLast ? Math.min((ts - simLast)/1000, 0.1) : 0;
+  simLast = ts;
+  const st = simAt(state.sim.s);
+  state.sim.s += st.v * state.sim.speed * dt;
+  const total = simTotal();
+  if (state.sim.s >= total){ state.sim.s = total; state.sim.on = false; }
+  updateAircraft();
+  updateSimReadout();
+  pilotClock += dt;
+  if (state.sim.follow && state.show.cockpit && pilotClock > 0.12){ pilotClock = 0; renderPilot(); }
+  if (state.sim.on) simRAF = requestAnimationFrame(simFrame);
+  else { syncSimButtons(); if (state.sim.follow) renderPilot(); }
+}
+function updateSimReadout(){
+  const st = simAt(state.sim.s);
+  document.getElementById('simPhase').textContent = st ? st.ph : '—';
+  document.getElementById('simSpd').textContent   = st ? Math.round(st.v*1.94)+' kt' : '—';
+  document.getElementById('simHgt').textContent   = st ? (st.h > 0.5 ? Math.round(st.h/FT)+' ft' : 'on the ground') : '—';
+}
+function syncSimButtons(){
+  document.getElementById('simStart').textContent =
+    state.sim.on ? 'Running' : (state.sim.s > 0 ? 'Resume' : 'Start landing');
+}
+function simStart(){
+  if (state.sim.on) return;
+  if (state.sim.s >= simTotal()) state.sim.s = 0;
+  state.sim.on = true; simLast = 0;
+  renderPlan(); syncSimButtons();
+  simRAF = requestAnimationFrame(simFrame);
+}
+function simPause(){
+  state.sim.on = false;
+  if (simRAF) cancelAnimationFrame(simRAF);
+  syncSimButtons();
+}
+function simReset(){
+  simPause(); state.sim.s = 0; redraw(); updateSimReadout(); syncSimButtons();
 }
 
 /* ═══════════ readout and minima ═══════════ */
@@ -1326,7 +1654,7 @@ function savePng(node, w, h, name, bg){
   img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
 }
 document.getElementById('pngPlan').addEventListener('click', function(){
-  savePng(svg, 960, 1070, 'runway-plan.png', state.mode==='night' ? '#05080b' : '#7d886e');
+  savePng(svg, 1160, 1130, 'runway-plan.png', state.mode==='night' ? '#05080b' : '#7d886e');
 });
 document.getElementById('pngPilot').addEventListener('click', function(){
   savePng(pv, PV.W, PV.H, 'cockpit-view.png', state.mode==='night' ? '#04070a' : '#75815f');
@@ -1343,6 +1671,7 @@ function wireSeg(id, apply){
     root.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed','false'));
     b.setAttribute('aria-pressed','true');
     apply(b.dataset.v);
+    if (id === 'segSpeed'){ syncSimButtons(); return; }
     redraw();
   });
 }
@@ -1361,6 +1690,16 @@ function syncSwitches(){
     if (!row.classList.contains('master')) row.classList.toggle('off', !on);
   });
 }
+document.getElementById('simStart').addEventListener('click', simStart);
+document.getElementById('simPause').addEventListener('click', simPause);
+document.getElementById('simReset').addEventListener('click', simReset);
+document.getElementById('simStand').addEventListener('change', function(e){
+  state.sim.stand = Number(e.target.value); simReset();
+});
+document.getElementById('simFollow').addEventListener('change', function(e){
+  state.sim.follow = e.target.checked; renderPilot();
+});
+wireSeg('segSpeed', function(v){ state.sim.speed = Number(v); });
 document.getElementById('switches').addEventListener('change', function(e){
   const c = e.target.dataset.c;
   if (!c) return;
@@ -1390,6 +1729,8 @@ document.getElementById('rvr').addEventListener('input', function(e){
 });
 
 syncSwitches();
+syncSimButtons();
+updateSimReadout();
 if (window.matchMedia('(max-width: 980px)').matches){
   document.querySelectorAll('details.block').forEach(function(d,i){ if (i > 1) d.open = false; });
 }
