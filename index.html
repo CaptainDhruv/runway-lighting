@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approach and runway lighting simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#080d12; --panel:#111a22; --panel-2:#16212b;
+  --line:#243342; --line-soft:#1b2732;
+  --text:#dde6ee; --text-dim:#8296a6; --text-faint:#586a79;
+  --accent:#f0a93c; --warn:#ff6b4a;
+  --ui:'Barlow Semi Condensed',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ink);color:var(--text);font-family:var(--ui);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+
+.shell{display:grid;grid-template-columns:332px minmax(0,1fr);min-height:100vh}
+
+.rail{background:var(--panel);border-right:1px solid var(--line);padding:22px 20px 48px;overflow-y:auto;max-height:100vh;position:sticky;top:0}
+.masthead h1{font-size:25px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;line-height:1.15}
+.masthead p{margin:0 0 24px;color:var(--text-dim);font-size:14px}
+
+.block{margin-bottom:20px}
+.block > h2{font-size:13px;font-weight:600;color:var(--text-faint);margin:0 0 8px;letter-spacing:.02em}
+.block > h2 em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--text)}
+
+.seg{display:flex;gap:4px}
+.seg button{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:14px;padding:7px 4px;border-radius:2px;cursor:pointer;transition:background .12s,color .12s}
+.seg button:hover{color:var(--text)}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#151007;font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-family:var(--ui);font-size:15px;padding:7px 8px;border-radius:2px;cursor:pointer}
+
+.papi-list{display:flex;flex-direction:column;gap:4px}
+.papi-list button{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:15px;text-align:left;padding:6px 10px;border-radius:2px;cursor:pointer;width:100%}
+.papi-list button:hover{color:var(--text)}
+.papi-list button[aria-pressed="true"]{color:var(--text);background:#1c2a36;border-left-color:var(--accent)}
+.chip{display:inline-flex;gap:3px;flex:0 0 auto}
+.chip i{width:9px;height:9px;border-radius:50%;display:block}
+.chip i.w{background:#fff3d8}.chip i.r{background:#ff3b30}
+.papi-angle{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--text-faint)}
+
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
+.checks.one{grid-template-columns:1fr}
+.checks label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--text-dim);cursor:pointer}
+.checks input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex:0 0 auto}
+.checks label:hover{color:var(--text)}
+.checks.fail input{accent-color:var(--warn)}
+
+.field{display:flex;align-items:center;gap:10px}
+.field input[type=text]{width:86px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-family:var(--mono);font-size:16px;letter-spacing:.06em;padding:6px 9px;border-radius:2px;text-transform:uppercase}
+.field span{font-size:14px;color:var(--text-dim)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+
+.readout{border:1px solid var(--line);border-radius:2px;background:var(--panel-2);padding:12px 13px}
+.rline{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:3px 0}
+.rline span:first-child{color:var(--text-faint)}
+.rline span:last-child{font-family:var(--mono);font-size:13px;text-align:right}
+.advice{margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--text-dim)}
+.advice b{color:var(--text);font-weight:600}
+.alert{margin-top:9px;padding:8px 10px;border-radius:2px;background:rgba(255,107,74,.12);border-left:3px solid var(--warn);font-size:14px;color:#ffc4b3}
+.alert b{color:#ffd9ce}
+.ok{margin-top:9px;padding:8px 10px;border-radius:2px;background:rgba(22,224,106,.09);border-left:3px solid #16e06a;font-size:14px;color:#a9e9c4}
+
+.btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.btn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:14px;padding:7px 11px;border-radius:2px;cursor:pointer}
+.btn:hover{color:var(--text);border-color:#33475a}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#151007;font-weight:600}
+
+
+.switches{display:flex;flex-direction:column;gap:1px}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 2px;font-size:14px;color:var(--text-dim);cursor:pointer;user-select:none}
+.sw:hover{color:var(--text)}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.track{width:34px;height:18px;border-radius:9px;background:#1d2a35;border:1px solid #2d3f50;position:relative;flex:0 0 auto;transition:background .15s,border-color .15s}
+.track::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#64798a;transition:transform .15s,background .15s}
+.sw input:checked + .track{background:rgba(240,169,60,.3);border-color:var(--accent)}
+.sw input:checked + .track::after{transform:translateX(16px);background:var(--accent)}
+.sw input:focus-visible + .track{outline:2px solid var(--accent);outline-offset:2px}
+.sw.master{border-bottom:1px solid var(--line-soft);margin-bottom:5px;padding-bottom:8px;color:var(--text);font-weight:500}
+.sw.off{opacity:.45}
+.stage{padding:24px 28px 60px;overflow-x:auto}
+.viewhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:0 0 12px}
+.viewhead h2{font-size:19px;font-weight:600;margin:0}
+.viewhead p{margin:0;color:var(--text-dim);font-size:14px}
+.board{border:1px solid var(--line);border-radius:3px;overflow:hidden;transition:background .3s}
+.board.night{background:#05080b}
+.board.day{background:#5f6a55}
+svg{display:block;width:100%;height:auto}
+#scene{max-width:960px;margin:0 auto}
+.section{margin-bottom:30px}
+
+.legend{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 22px;max-width:1000px}
+.legend div{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--text-dim)}
+.legend b{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+
+@media (max-width:920px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  .stage{padding:20px 14px 40px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <div class="masthead">
+      <h1>Approach and runway lighting</h1>
+      <p>Plan view and cockpit view, ICAO and FAA systems</p>
+    </div>
+
+    <div class="block">
+      <h2>Time of day</h2>
+      <div class="seg" id="segDay">
+        <button data-v="night" aria-pressed="true">Night</button>
+        <button data-v="day" aria-pressed="false">Day</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Approach lighting system</h2>
+      <select id="selAls">
+        <option value="icaoCat1">ICAO precision — CAT I</option>
+        <option value="icaoCat23" selected>ICAO precision — CAT II / III</option>
+        <option value="calvert">Calvert — CAT II / III</option>
+        <option value="alsf2">FAA ALSF-2</option>
+        <option value="malsr">FAA MALSR</option>
+      </select>
+    </div>
+
+    <div class="block">
+      <h2>Operating category</h2>
+      <div class="seg" id="segCat">
+        <button data-v="I" aria-pressed="false">CAT I</button>
+        <button data-v="II" aria-pressed="false">CAT II</button>
+        <button data-v="IIIA" aria-pressed="true">IIIA</button>
+        <button data-v="IIIB" aria-pressed="false">IIIB</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Glide slope indicator</h2>
+      <div class="seg" id="segGsi">
+        <button data-v="papi" aria-pressed="true">PAPI</button>
+        <button data-v="vasi" aria-pressed="false">VASI</button>
+        <button data-v="none" aria-pressed="false">None</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Where you are on the slope</h2>
+      <div class="papi-list" id="papiList">
+        <button data-v="high" aria-pressed="false"><span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i></span>Too high <span class="papi-angle">3.7°</span></button>
+        <button data-v="slightHigh" aria-pressed="false"><span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="r"></i></span>Slightly high <span class="papi-angle">3.2°</span></button>
+        <button data-v="onPath" aria-pressed="true"><span class="chip"><i class="w"></i><i class="w"></i><i class="r"></i><i class="r"></i></span>On glide path <span class="papi-angle">3.0°</span></button>
+        <button data-v="slightLow" aria-pressed="false"><span class="chip"><i class="w"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>Slightly low <span class="papi-angle">2.8°</span></button>
+        <button data-v="low" aria-pressed="false"><span class="chip"><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>Too low <span class="papi-angle">2.3°</span></button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Eye height above the runway</h2>
+      <div class="seg" id="segEye">
+        <button data-v="61" aria-pressed="true">200 ft</button>
+        <button data-v="30.5" aria-pressed="false">100 ft</button>
+        <button data-v="15" aria-pressed="false">50 ft</button>
+        <button data-v="6" aria-pressed="false">20 ft</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Runway visual range — <em id="rvrTag">unrestricted</em></h2>
+      <input type="range" id="rvr" min="0" max="7" step="1" value="0">
+    </div>
+
+    <div class="block">
+      <h2>Low visibility procedures</h2>
+      <div class="checks one">
+        <label><input type="checkbox" id="lvp"> Stop bars, guard lights and CAT II/III hold</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Unserviceabilities</h2>
+      <div class="checks fail" id="fails">
+        <label><input type="checkbox" data-k="approach"> Approach</label>
+        <label><input type="checkbox" data-k="tdz"> Touchdown zone</label>
+        <label><input type="checkbox" data-k="centreline"> Centreline</label>
+        <label><input type="checkbox" data-k="edge"> Edge</label>
+        <label><input type="checkbox" data-k="rvrSys"> RVR readout</label>
+        <label><input type="checkbox" data-k="stopbar"> Stop bars</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Lighting control</h2>
+      <div class="switches" id="switches">
+        <label class="sw master"><span>Master — airfield lighting</span><input type="checkbox" data-c="master" checked><span class="track"></span></label>
+        <label class="sw"><span>Approach system</span><input type="checkbox" data-c="approach" checked><span class="track"></span></label>
+        <label class="sw"><span>Sequenced flashers</span><input type="checkbox" data-c="flashers" checked><span class="track"></span></label>
+        <label class="sw"><span>Threshold and runway end</span><input type="checkbox" data-c="threshold" checked><span class="track"></span></label>
+        <label class="sw"><span>Runway edge</span><input type="checkbox" data-c="edge" checked><span class="track"></span></label>
+        <label class="sw"><span>Runway centreline</span><input type="checkbox" data-c="centreline" checked><span class="track"></span></label>
+        <label class="sw"><span>Touchdown zone</span><input type="checkbox" data-c="tdz" checked><span class="track"></span></label>
+        <label class="sw"><span>Slope indicator</span><input type="checkbox" data-c="papi" checked><span class="track"></span></label>
+        <label class="sw"><span>Taxiway</span><input type="checkbox" data-c="taxiway" checked><span class="track"></span></label>
+        <label class="sw"><span>Stop bars</span><input type="checkbox" data-c="stopbar" checked><span class="track"></span></label>
+        <label class="sw"><span>REIL</span><input type="checkbox" data-c="reil"><span class="track"></span></label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Show</h2>
+      <div class="checks" id="checks">
+        <label><input type="checkbox" data-k="taxiway" checked> Taxiway pavement</label>
+        <label><input type="checkbox" data-k="markings" checked> Paint</label>
+        <label><input type="checkbox" data-k="signs" checked> Signs</label>
+        <label><input type="checkbox" data-k="labels" checked> Callouts</label>
+        <label><input type="checkbox" data-k="ruler" checked> Distance ruler</label>
+        <label><input type="checkbox" data-k="cockpit" checked> Cockpit view</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Runway designator</h2>
+      <div class="field">
+        <input type="text" id="desig" value="09L" maxlength="3" spellcheck="false">
+        <span>Number and side letter</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Readout</h2>
+      <div class="readout">
+        <div class="rline"><span>Approach system</span><span id="roSys">—</span></div>
+        <div class="rline"><span>Decision height</span><span id="roDh">—</span></div>
+        <div class="rline"><span>Minimum RVR</span><span id="roRvr">—</span></div>
+        <div class="rline"><span>Slope indicator</span><span id="roPapi">—</span></div>
+        <div class="advice" id="roAdvice"></div>
+        <div id="roStatus"></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Export</h2>
+      <div class="btnrow">
+        <button class="btn" id="pngPlan">Save plan view</button>
+        <button class="btn" id="pngPilot">Save cockpit view</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="stage">
+
+    <section class="section">
+      <div class="viewhead">
+        <h2 id="planTitle">Runway 09L — plan view</h2>
+        <p>3000 m runway, 45 m wide. Lateral scale exaggerated so the fixtures stay readable.</p>
+      </div>
+      <div class="board night" id="boardPlan">
+        <svg id="scene" viewBox="0 0 960 1070" role="img" aria-label="Plan view of the approach and runway lighting"></svg>
+      </div>
+      <div class="legend">
+        <div><b style="background:#fff3d8"></b> White — approach, centreline, touchdown zone, edge</div>
+        <div><b style="background:#ff3b30"></b> Red — side rows, last 300 m, runway end, stop bar</div>
+        <div><b style="background:#16e06a"></b> Green — threshold, wing bars, taxiway centreline</div>
+        <div><b style="background:#ffd21f"></b> Yellow — edge in the last 600 m, guard lights</div>
+        <div><b style="background:#3a7bff"></b> Blue — taxiway edge</div>
+        <div><b style="background:#c62a20"></b> Red sign — mandatory runway holding position</div>
+        <div><b style="background:linear-gradient(90deg,#ff3b30 50%,#fff3d8 50%)"></b> Red and white — 900 m to 300 m remaining</div>
+      </div>
+    </section>
+
+    <section class="section" id="pilotSection">
+      <div class="viewhead">
+        <h2 id="pilotTitle">Cockpit view</h2>
+        <p id="pilotSub">What the same lighting looks like from the flight deck.</p>
+      </div>
+      <div class="board night" id="boardPilot">
+        <svg id="pilot" viewBox="0 0 880 440" role="img" aria-label="Cockpit view of the approach lighting"></svg>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ═══════════ geometry, plan view ═══════════ */
+const SX = 3.0, SY = 0.24, CX = 330, YTHR = 790;
+const RWY_LEN = 3000, HALF_W = 22.5;
+const X = m => CX + m*SX;
+const Y = m => YTHR - m*SY;
+const NS = 'http://www.w3.org/2000/svg';
+const C = {white:'#fff3d8', red:'#ff3b30', green:'#16e06a', yellow:'#ffd21f', blue:'#3a7bff'};
+const FT = 0.3048;
+
+/* ═══════════ approach lighting systems ═══════════ */
+/* distances in metres from the threshold */
+const ALS = {
+  icaoCat1:{
+    label:'ICAO precision CAT I', short:'ICAO CAT I', len:900,
+    centre:{spacing:30, lights:5, span:1.6},
+    crossbars:[{d:150, half:15}],
+    sideRows:null, flashers:null,
+    note:'900 m of white centreline barrettes with one 30 m crossbar at 150 m.'
+  },
+  icaoCat23:{
+    label:'ICAO precision CAT II / III', short:'ICAO CAT II/III', len:900,
+    centre:{spacing:30, lights:5, span:1.6},
+    crossbars:[{d:150, half:15},{d:300, half:15}],
+    sideRows:{to:270, spacing:30, offset:12, lights:3},
+    flashers:{from:330, to:900},
+    note:'The CAT I pattern plus red side rows over the inner 270 m and a second crossbar at 300 m.'
+  },
+  calvert:{
+    label:'Calvert CAT II / III', short:'Calvert', len:900,
+    centre:{spacing:30, lights:1, span:0, innerTo:300, innerLights:5, innerSpan:1.6},
+    crossbars:[{d:150,half:15},{d:300,half:12.5},{d:450,half:10},{d:600,half:7.5},{d:750,half:5}],
+    sideRows:{to:270, spacing:30, offset:12, lights:3},
+    flashers:null,
+    note:'The British pattern — five crossbars of decreasing length, tapering away from the threshold.'
+  },
+  alsf2:{
+    label:'FAA ALSF-2', short:'ALSF-2', len:2400*FT,
+    centre:{spacing:100*FT, lights:5, span:1.6},
+    crossbars:[{d:1000*FT, half:15},{d:500*FT, half:7}],
+    sideRows:{to:1000*FT, spacing:100*FT, offset:12, lights:3},
+    flashers:{from:1000*FT, to:2400*FT},
+    note:'The US CAT II/III system — 2400 ft, red side rows over the inner 1000 ft, flashers outboard of the 1000 ft bar.'
+  },
+  malsr:{
+    label:'FAA MALSR', short:'MALSR', len:2400*FT,
+    centre:{spacing:200*FT, lights:5, span:1.6, to:1400*FT},
+    crossbars:[{d:1000*FT, half:10.5}],
+    sideRows:null,
+    flashers:{from:1000*FT, to:2400*FT},
+    note:'A medium-intensity CAT I system — bars every 200 ft to 1400 ft, then the RAIL flashers.'
+  }
+};
+
+/* ═══════════ taxiway network ═══════════ */
+const TW_HALF = 11.5;      // taxiway half width, m
+const HOLD_X  = 90;        // runway holding position, m from the runway centreline
+const SENS_X  = 90;        // ILS sensitive area half width, m
+const NET = {
+  parallel:[[130,-90],[130,3090]],
+  links:[
+    {id:'A1', kind:'entry', path:[[HALF_W,90],[130,90]]},
+    {id:'A2', kind:'rapid', path:[[HALF_W,1200],[130,1386]]},
+    {id:'A3', kind:'rapid', path:[[HALF_W,2100],[130,2286]]},
+    {id:'A4', kind:'exit',  path:[[HALF_W,2940],[130,2940]]},
+    {id:'B1', kind:'exit',  path:[[-HALF_W,1650],[-100,1650]]}
+  ]
+};
+// the lead-off centreline starts on the RUNWAY centreline, not at the edge
+function leadPath(l){
+  const y0 = l.path[0][1];
+  if (l.kind === 'rapid') return [[0, y0-60],[HALF_W*0.55, y0-26]].concat(l.path);
+  return [[0, y0]].concat(l.path);
+}
+function polyOffset(path, half, chunk){
+  const out = [];
+  for (let i=0;i<path.length-1;i++){
+    const x1=path[i][0], y1=path[i][1], x2=path[i+1][0], y2=path[i+1][1];
+    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy);
+    if (!L) continue;
+    const nx=-dy/L*half, ny=dx/L*half;
+    const n=Math.max(1, Math.ceil(L/(chunk||80)));
+    for (let k=0;k<n;k++){
+      const t0=k/n, t1=(k+1)/n;
+      out.push([[x1+dx*t0+nx, y1+dy*t0+ny],[x1+dx*t1+nx, y1+dy*t1+ny],
+                [x1+dx*t1-nx, y1+dy*t1-ny],[x1+dx*t0-nx, y1+dy*t0-ny]]);
+    }
+  }
+  return out;
+}
+function sampled(path, spacing){
+  const out = [];
+  for (let i=0;i<path.length-1;i++){
+    const x1=path[i][0], y1=path[i][1], x2=path[i+1][0], y2=path[i+1][1];
+    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy);
+    if (!L) continue;
+    const n=Math.max(1, Math.round(L/spacing));
+    for (let k=0;k<n;k++) out.push({x:x1+dx*k/n, y:y1+dy*k/n, ux:dx/L, uy:dy/L});
+  }
+  const last = path[path.length-1];
+  out.push({x:last[0], y:last[1], ux:0, uy:1});
+  return out;
+}
+function holdPoint(l){
+  const a=l.path[0], b=l.path[1];
+  const t=(HOLD_X-Math.abs(a[0]))/(Math.abs(b[0])-Math.abs(a[0]));
+  const dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy);
+  return {x:a[0]+dx*t, y:a[1]+dy*t, ux:dx/L, uy:dy/L};
+}
+function taxiPolys(){
+  let out = polyOffset(NET.parallel, TW_HALF);
+  NET.links.forEach(function(l){ out = out.concat(polyOffset(leadPath(l), TW_HALF)); });
+  return out;
+}
+
+/* ═══════════ category minima ═══════════ */
+const CAT = {
+  I:   {dh:'200 ft', rvr:550, rvrTxt:'550 m',           needs:['edge']},
+  II:  {dh:'100 ft', rvr:300, rvrTxt:'300 m',           needs:['edge','centreline','tdz','approach']},
+  IIIA:{dh:'50 ft',  rvr:175, rvrTxt:'175 m',           needs:['edge','centreline','tdz','approach','rvrSys']},
+  IIIB:{dh:'below 50 ft or none', rvr:75, rvrTxt:'75 m', needs:['edge','centreline','tdz','approach','rvrSys']}
+};
+const CAT_ORDER = ['I','II','IIIA','IIIB'];
+const FAIL_NAME = {approach:'approach lighting', tdz:'touchdown zone lights', centreline:'runway centreline lights',
+                   edge:'runway edge lights', rvrSys:'RVR reporting', stopbar:'stop bars'};
+
+/* ═══════════ slope indicator ═══════════ */
+/* pat is ordered from the unit NEAREST the runway outwards.
+   The unit nearest the runway has the highest transition angle, so it is the
+   first to show red as you come down the slope. Seen from the flight deck with
+   the PAPI on the left, the picture reads white-white-red-red on slope. */
+const PAPI = {
+  high:      {pat:['w','w','w','w'], name:'Four white',           ang:3.7, angTxt:'above 3.5°', advice:'Well above the slope. Reduce power and increase the rate of descent to regain 3°.'},
+  slightHigh:{pat:['r','w','w','w'], name:'Three white, one red', ang:3.2, angTxt:'about 3.2°', advice:'A little high. Only the unit nearest the runway is red — a small correction turns a second one red.'},
+  onPath:    {pat:['r','r','w','w'], name:'Two white, two red',   ang:3.0, angTxt:'3.0°',       advice:'On slope. The two units nearest the runway are red, the two outboard are white — hold what you have.'},
+  slightLow: {pat:['r','r','r','w'], name:'One white, three red', ang:2.8, angTxt:'about 2.8°', advice:'A little low. Only the outermost unit is still white — shallow the descent until a second one turns white.'},
+  low:       {pat:['r','r','r','r'], name:'Four red',             ang:2.3, angTxt:'below 2.5°', advice:'Well below the slope. Add power and arrest the descent — obstacle clearance is not assured.'}
+};
+const VASI = {
+  high:      {near:'w', far:'w', name:'Both bars white'},
+  slightHigh:{near:'w', far:'w', name:'Both bars white, fading'},
+  onPath:    {near:'r', far:'w', name:'Red over white'},
+  slightLow: {near:'r', far:'r', name:'Both bars red, fading'},
+  low:       {near:'r', far:'r', name:'Both bars red'}
+};
+
+const RVR_STEPS = [null,1500,800,550,350,200,125,75];
+
+/* ═══════════ state ═══════════ */
+const state = {
+  mode:'night', als:'icaoCat23', cat:'IIIA', gsi:'papi', papi:'onPath',
+  eyeH:61, rvrIdx:0, lvp:false, desig:'09L',
+  fail:{approach:false,tdz:false,centreline:false,edge:false,rvrSys:false,stopbar:false},
+  show:{taxiway:true,markings:true,signs:true,labels:true,ruler:true,cockpit:true},
+  lights:{master:true,approach:true,flashers:true,threshold:true,edge:true,
+          centreline:true,tdz:true,papi:true,taxiway:true,stopbar:true,reil:false}
+};
+const lit = k => state.lights.master && state.lights[k];
+const rvrM = () => RVR_STEPS[state.rvrIdx];
+const rvrEff = () => RVR_STEPS[state.rvrIdx] || 6000;
+
+/* ═══════════ svg helpers ═══════════ */
+const svg = document.getElementById('scene');
+const pv  = document.getElementById('pilot');
+
+function el(tag, attrs, parent){
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function group(id, parent){ return el('g', id ? {id:id} : {}, parent || svg); }
+function clear(node){ while (node.firstChild) node.removeChild(node.firstChild); }
+
+function light(g, xm, ym, colour, r){
+  r = r || 2.3;
+  const cx = X(xm), cy = Y(ym);
+  if (state.mode === 'night'){
+    el('circle',{cx:cx,cy:cy,r:r*3.6,fill:colour,opacity:0.10},g);
+    el('circle',{cx:cx,cy:cy,r:r*1.9,fill:colour,opacity:0.22},g);
+    el('circle',{cx:cx,cy:cy,r:r,fill:colour},g);
+  } else {
+    el('circle',{cx:cx,cy:cy,r:r,fill:colour,opacity:0.85},g);
+    el('circle',{cx:cx,cy:cy,r:r,fill:'none',stroke:'#1b1f18','stroke-width':0.5,opacity:0.5},g);
+  }
+}
+function barrette(g, xm, ym, n, spacing, colour, r){
+  const start = xm - ((n-1)*spacing)/2;
+  for (let i=0;i<n;i++) light(g, start + i*spacing, ym, colour, r);
+}
+function paint(g, xm, ym, wM, lM, fill, opacity){
+  el('rect',{x:X(xm-wM/2), y:Y(ym+lM), width:wM*SX, height:lM*SY,
+             fill:fill, opacity:(opacity===undefined?0.85:opacity)}, g);
+}
+function label(g, text, x, y, anchor, colour, size){
+  const t = el('text',{x:x, y:y, 'text-anchor':anchor||'start',
+    fill:colour||(state.mode==='night'?'#93a6b6':'#1d2318'),
+    'font-family':"'Barlow Semi Condensed',sans-serif",'font-size':size||11.5}, g);
+  t.textContent = text;
+  return t;
+}
+function callout(g, text, lx, ly, tx, ty, anchor){
+  const col = state.mode==='night' ? '#93a6b6' : '#1d2318';
+  el('polyline',{points:[lx,ly,(lx+tx)/2,ty,tx,ty].join(' '),fill:'none',
+                 stroke:col,'stroke-width':0.7,opacity:0.7}, g);
+  label(g, text, tx + (anchor==='end'?-6:6), ty+3.5, anchor==='end'?'end':'start', col);
+}
+
+/* Plan-view taxiways are drawn with a constant on-screen width. The lateral scale
+   is exaggerated, so a world-width taxiway running across the page would collapse
+   to a sliver. The cockpit view keeps the true width, where it matters. */
+const TW_PX = 15;
+function toPx(pt){ return {x:X(pt[0]), y:Y(pt[1])}; }
+function perpPx(ux, uy){
+  const dx = ux*SX, dy = -uy*SY, L = Math.hypot(dx,dy) || 1;
+  return {x:-dy/L, y:dx/L};
+}
+function segQuadsPx(path){
+  const out = [];
+  for (let i=0;i<path.length-1;i++){
+    const a = toPx(path[i]), b = toPx(path[i+1]);
+    const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
+    if (!L) continue;
+    const nx=-dy/L*TW_PX, ny=dx/L*TW_PX;
+    out.push([[a.x+nx,a.y+ny],[b.x+nx,b.y+ny],[b.x-nx,b.y-ny],[a.x-nx,a.y-ny]]);
+  }
+  return out;
+}
+
+/* ═══════════ plan view ═══════════ */
+let flashGroups = [], reilNodes = [], guardNodes = [];
+
+function renderPlan(){
+  clear(svg);
+  flashGroups = []; reilNodes = []; guardNodes = [];
+  const sys = ALS[state.als];
+  const night = state.mode === 'night';
+
+  drawGround(night);
+  if (state.show.markings) drawPaint(night);
+  if (state.show.taxiway) drawTaxiwayPaint(night);
+  if (state.show.taxiway && state.show.markings) drawHolds(night);
+
+  if (lit('approach') && !state.fail.approach) drawApproach(sys);
+  if (lit('threshold')) drawThreshold();
+  if (lit('edge') && !state.fail.edge) drawEdge();
+  if (lit('centreline') && !state.fail.centreline) drawCentreline();
+  if (lit('tdz') && !state.fail.tdz) drawTdz();
+  if (lit('threshold')) drawEnd();
+  if (state.show.taxiway && lit('taxiway')) drawTaxiwayLights();
+  if (state.lvp && state.show.taxiway && lit('taxiway')) drawLvpLights();
+  if (state.gsi !== 'none' && lit('papi')) drawSlopeIndicator();
+  if (lit('reil')) drawReil();
+  if (state.show.ruler) drawRuler();
+  if (state.show.labels) drawCallouts(sys);
+  drawHaze();
+  if (!state.lights.master){
+    const g = group('off');
+    label(g,'Airfield lighting off', 480, 34, 'middle',
+          state.mode==='night' ? '#6b7f8f' : '#20281a', 15);
+  }
+
+  document.getElementById('boardPlan').className = 'board ' + state.mode;
+  document.getElementById('planTitle').textContent = 'Runway ' + state.desig + ' — plan view';
+}
+
+function drawGround(night){
+  const g = group('ground');
+  el('rect',{x:0,y:0,width:960,height:1070,fill: night?'#05080b':'#5f6a55'},g);
+  if (state.lvp){  // ILS sensitive area
+    el('rect',{x:X(-SENS_X),y:Y(RWY_LEN),width:SENS_X*2*SX,height:(RWY_LEN+900)*SY,
+               fill: night?'#0b1219':'#6a7560',opacity:0.55},g);
+  }
+  el('rect',{x:X(-HALF_W),y:Y(RWY_LEN),width:HALF_W*2*SX,height:RWY_LEN*SY,
+             fill: night?'#0e141a':'#54585b'},g);
+  el('rect',{x:X(-HALF_W),y:Y(0),width:HALF_W*2*SX,height:900*SY,
+             fill: night?'#080c10':'#5a6351',opacity:0.7},g);
+  if (state.show.taxiway){
+    const fill = night?'#0e141a':'#54585b';
+    const paths = [NET.parallel].concat(NET.links.map(leadPath));
+    paths.forEach(function(path){
+      segQuadsPx(path).forEach(function(q){
+        el('polygon',{points:q.map(pt => pt[0]+','+pt[1]).join(' '), fill:fill},g);
+      });
+      for (let i=1;i<path.length-1;i++){          // fill the mitre at each bend
+        const c = toPx(path[i]);
+        el('circle',{cx:c.x, cy:c.y, r:TW_PX, fill:fill},g);
+      }
+    });
+  }
+}
+
+function drawPaint(night){
+  const g = group('paint');
+  const wht = night?'#7d8790':'#eef1f2';
+  const op  = night?0.5:0.9;
+  for (let i=-4;i<=4;i++){
+    if (!i) continue;
+    paint(g, (i>0?(i-0.5):(i+0.5))*4.2, 6, 1.8, 30, wht, op);
+  }
+  const t = el('text',{x:CX,y:Y(62),'text-anchor':'middle',fill:wht,opacity:op,
+    'font-family':"'Barlow Semi Condensed',sans-serif",'font-size':26,'font-weight':600,'letter-spacing':'2'},g);
+  t.textContent = state.desig;
+  for (let d=200; d<RWY_LEN-60; d+=50) paint(g, 0, d, 0.9, 30, wht, op*0.85);
+  paint(g,-14,300,6,50,wht,op); paint(g,14,300,6,50,wht,op);
+  [[150,3],[450,2],[600,2],[750,1],[900,1]].forEach(function(s){
+    for (let k=0;k<s[1];k++){
+      const off = 8.5 + k*2.6;
+      paint(g,-off,s[0],1.8,22.5,wht,op); paint(g,off,s[0],1.8,22.5,wht,op);
+    }
+  });
+  paint(g,-HALF_W+0.9,0,0.9,RWY_LEN,wht,op*0.6);
+  paint(g, HALF_W-0.9,0,0.9,RWY_LEN,wht,op*0.6);
+  // blast pad / stopway chevrons before the threshold
+  const ch = night?'#8a7a35':'#e8c437';
+  for (let k=0;k<4;k++){
+    const y0 = -18 - k*22;
+    el('polyline',{points:[X(-18)+','+Y(y0-16), X(0)+','+Y(y0), X(18)+','+Y(y0-16)].join(' '),
+                   fill:'none', stroke:ch, 'stroke-width':1.6, opacity: night?0.5:0.9},g);
+  }
+}
+
+function drawTaxiwayPaint(night){
+  const g = group('twypaint');
+  const yl = night?'#8a7a35':'#e8c437';
+  const line = function(path){
+    el('polyline',{points:path.map(pt => X(pt[0])+','+Y(pt[1])).join(' '), fill:'none',
+                   stroke:yl,'stroke-width':1.3,'stroke-linejoin':'round',
+                   opacity: night?0.5:0.95},g);
+  };
+  line(NET.parallel);
+  NET.links.forEach(function(l){ line(leadPath(l)); });
+  // enhanced centreline: dashed flanking lines running back from each hold
+  NET.links.forEach(function(l){
+    const h = holdPoint(l), q = perpPx(h.ux,h.uy), c = toPx([h.x,h.y]);
+    const dx = h.ux*SX, dy = -h.uy*SY, L = Math.hypot(dx,dy)||1;
+    [-1,1].forEach(function(sg){
+      el('line',{x1:c.x+q.x*3.5*sg+dx/L*8,  y1:c.y+q.y*3.5*sg+dy/L*8,
+                 x2:c.x+q.x*3.5*sg+dx/L*54, y2:c.y+q.y*3.5*sg+dy/L*54,
+                 stroke:yl,'stroke-width':0.8,'stroke-dasharray':'3 3',
+                 opacity: night?0.45:0.85},g);
+    });
+  });
+}
+
+function drawHolds(night){
+  const g = group('holds');
+  const yl = night?'#9a8838':'#f0cc3a';
+  NET.links.forEach(function(l){
+    const h = holdPoint(l), q = perpPx(h.ux,h.uy), c = toPx([h.x,h.y]);
+    const dx = h.ux*SX, dy = -h.uy*SY, L = Math.hypot(dx,dy)||1;
+    const ax = dx/L, ay = dy/L;                 // along the taxiway, away from the runway
+    for (let k=0;k<4;k++){
+      const off = (k-1.5)*3.4;                  // negative = runway side, dashed
+      el('line',{x1:c.x+ax*off-q.x*TW_PX, y1:c.y+ay*off-q.y*TW_PX,
+                 x2:c.x+ax*off+q.x*TW_PX, y2:c.y+ay*off+q.y*TW_PX,
+                 stroke:yl,'stroke-width':1.1,
+                 'stroke-dasharray': off<0 ? '3 3' : '', opacity:0.95},g);
+    }
+    if (state.lvp){                             // CAT II/III ladder rungs
+      for (let k=0;k<=4;k++){
+        const t=(k/4-0.5)*2*TW_PX;
+        el('line',{x1:c.x+q.x*t-ax*5.1, y1:c.y+q.y*t-ay*5.1,
+                   x2:c.x+q.x*t+ax*5.1, y2:c.y+q.y*t+ay*5.1,
+                   stroke:yl,'stroke-width':0.9,opacity:0.9},g);
+      }
+    }
+    if (state.show.signs) drawSigns(g, l, c, q, night);
+  });
+}
+
+function drawSigns(g, l, c, q, night){
+  const sx = c.x + q.x*(TW_PX+13), sy = c.y + q.y*(TW_PX+13);
+  el('rect',{x:sx-19,y:sy-6.5,width:38,height:13,rx:1.5,
+             fill: night?'#8e1f18':'#c62a20',stroke:'#e8e2dc','stroke-width':0.5},g);
+  label(g, state.desig+'-'+recip(state.desig), sx, sy+3.5, 'middle', '#fff6f2', 8);
+  const lx = c.x - q.x*(TW_PX+13), ly = c.y - q.y*(TW_PX+13);
+  el('rect',{x:lx-9,y:ly-6.5,width:18,height:13,rx:1.5,
+             fill:'#14171a',stroke:'#e8c437','stroke-width':0.6},g);
+  label(g, l.id, lx, ly+3.5, 'middle', '#e8c437', 8);
+}
+
+function recip(d){
+  const n = parseInt(d,10);
+  if (isNaN(n)) return '27R';
+  let r = n + 18; if (r > 36) r -= 36;
+  const side = /L$/i.test(d) ? 'R' : /R$/i.test(d) ? 'L' : /C$/i.test(d) ? 'C' : '';
+  return (r<10?'0':'') + r + side;
+}
+
+function drawApproach(sys){
+  const g = group('approach');
+  const c = sys.centre;
+  const centreTo = c.to || sys.len;
+  for (let d=c.spacing; d<=centreTo+0.5; d+=c.spacing){
+    const bg = group('', g);
+    if (c.innerTo && d <= c.innerTo) barrette(bg, 0, -d, c.innerLights, c.innerSpan, C.white, 2.2);
+    else if (c.lights > 1)           barrette(bg, 0, -d, c.lights, c.span, C.white, 2.2);
+    else                             light(bg, 0, -d, C.white, 2.4);
+    if (sys.flashers && d >= sys.flashers.from && d <= sys.flashers.to) flashGroups.push(bg);
+  }
+  if (sys.flashers && sys.flashers.to > centreTo + 1){
+    for (let d=Math.max(centreTo + c.spacing, sys.flashers.from); d<=sys.flashers.to+0.5; d+=c.spacing){
+      const bg = group('', g);
+      light(bg, 0, -d, C.white, 2.7);
+      flashGroups.push(bg);
+    }
+  }
+  sys.crossbars.forEach(function(cb){
+    const n = Math.max(3, Math.round(cb.half*2/1.5)+1);
+    barrette(g, 0, -cb.d, n, (cb.half*2)/(n-1), C.white, 2.2);
+  });
+  if (sys.sideRows){
+    for (let d=sys.sideRows.spacing; d<=sys.sideRows.to+0.5; d+=sys.sideRows.spacing){
+      barrette(g,-sys.sideRows.offset,-d,sys.sideRows.lights,1.5,C.red,2.2);
+      barrette(g, sys.sideRows.offset,-d,sys.sideRows.lights,1.5,C.red,2.2);
+    }
+  }
+}
+
+function drawThreshold(){
+  const g = group('threshold');
+  for (let i=-7;i<=7;i++) light(g, i*3.0, 0, C.green, 2.5);
+  for (let i=0;i<5;i++){
+    light(g,-(HALF_W+3+i*3),0,C.green,2.5);
+    light(g, (HALF_W+3+i*3),0,C.green,2.5);
+  }
+}
+function drawEdge(){
+  const g = group('edge');
+  for (let d=0; d<=RWY_LEN; d+=60){
+    const col = (d >= RWY_LEN-600) ? C.yellow : C.white;
+    light(g,-HALF_W,d,col,2.4); light(g,HALF_W,d,col,2.4);
+  }
+}
+function drawCentreline(){
+  const g = group('centreline');
+  let flip = false;
+  for (let d=30; d<=RWY_LEN-30; d+=30){
+    let col;
+    if (d < RWY_LEN-900) col = C.white;
+    else if (d < RWY_LEN-300){ col = flip ? C.red : C.white; flip = !flip; }
+    else col = C.red;
+    light(g,0,d,col,2.2);
+  }
+}
+function drawTdz(){
+  const g = group('tdz');
+  for (let d=30; d<=900; d+=30){
+    barrette(g,-7,d,3,1.5,C.white,2.0);
+    barrette(g, 7,d,3,1.5,C.white,2.0);
+  }
+}
+function drawEnd(){
+  const g = group('end');
+  for (let i=-7;i<=7;i++) light(g,i*3.0,RWY_LEN,C.red,2.5);
+}
+
+function lightPx(g, cx, cy, colour, r){
+  r = r || 2.1;
+  if (state.mode === 'night'){
+    el('circle',{cx:cx,cy:cy,r:r*3.6,fill:colour,opacity:0.10},g);
+    el('circle',{cx:cx,cy:cy,r:r*1.9,fill:colour,opacity:0.22},g);
+    el('circle',{cx:cx,cy:cy,r:r,fill:colour},g);
+  } else {
+    el('circle',{cx:cx,cy:cy,r:r,fill:colour,opacity:0.85},g);
+  }
+}
+
+function drawTaxiwayLights(){
+  const g = group('twy');
+  const edge = function(path, spacing){
+    sampled(path, spacing).forEach(function(p){
+      const q = perpPx(p.ux,p.uy), c = toPx([p.x,p.y]);
+      lightPx(g, c.x+q.x*TW_PX, c.y+q.y*TW_PX, C.blue);
+      lightPx(g, c.x-q.x*TW_PX, c.y-q.y*TW_PX, C.blue);
+    });
+  };
+  sampled(NET.parallel, 30).forEach(function(p){ light(g, p.x, p.y, C.green, 2.0); });
+  edge(NET.parallel, 75);
+  NET.links.forEach(function(l){
+    // lead-off lights alternate green and yellow until clear of the sensitive area
+    sampled(leadPath(l), 15).forEach(function(p,i){
+      const inside = Math.abs(p.x) < SENS_X;
+      light(g, p.x, p.y, inside ? (i%2 ? C.yellow : C.green) : C.green, 2.0);
+    });
+    edge(l.path, 40);
+  });
+}
+
+function drawLvpLights(){
+  const g = group('lvp');
+  NET.links.forEach(function(l){
+    const h = holdPoint(l), q = perpPx(h.ux,h.uy), c = toPx([h.x,h.y]);
+    const dx = h.ux*SX, dy = -h.uy*SY, L = Math.hypot(dx,dy)||1;
+    const ax = dx/L, ay = dy/L;
+    if (!state.fail.stopbar && lit('stopbar')){
+      for (let k=0;k<=8;k++){
+        const t = (k/8-0.5)*2*TW_PX;
+        lightPx(g, c.x+q.x*t-ax*6, c.y+q.y*t-ay*6, C.red, 2.1);
+      }
+    }
+    [-1,1].forEach(function(sg){
+      const bx = c.x + q.x*sg*(TW_PX+4), by = c.y + q.y*sg*(TW_PX+4);
+      const n1 = el('circle',{cx:bx-ax*3.5,cy:by-ay*3.5,r:2.3,fill:C.yellow},g);
+      const n2 = el('circle',{cx:bx+ax*3.5,cy:by+ay*3.5,r:2.3,fill:C.yellow,opacity:0.15},g);
+      guardNodes.push([n1,n2]);
+    });
+  });
+}
+
+function drawSlopeIndicator(){
+  const g = group('papi');
+  const housing = state.mode==='night' ? '#161d24' : '#2f3630';
+  if (state.gsi === 'papi'){
+    const pat = PAPI[state.papi].pat;
+    for (let i=0;i<4;i++){
+      const xm = -(HALF_W+15+i*9);
+      el('rect',{x:X(xm)-5,y:Y(300)-4.5,width:10,height:9,rx:1.5,fill:housing,stroke:'#3a4854','stroke-width':0.6},g);
+      light(g,xm,300,pat[i]==='w'?C.white:C.red,2.6);
+    }
+  } else {
+    const v = VASI[state.papi];
+    [[300,v.near],[450,v.far]].forEach(function(b){
+      for (let i=0;i<3;i++){
+        const xm = -(HALF_W+15+i*7);
+        el('rect',{x:X(xm)-4,y:Y(b[0])-4,width:8,height:8,rx:1.5,fill:housing,stroke:'#3a4854','stroke-width':0.6},g);
+        light(g,xm,b[0],b[1]==='w'?C.white:C.red,2.4);
+      }
+    });
+  }
+}
+
+function drawReil(){
+  const g = group('reil');
+  [-(HALF_W+12),(HALF_W+12)].forEach(function(xm){
+    reilNodes.push(el('circle',{cx:X(xm),cy:Y(0),r:3.2,fill:'#ffffff'},g));
+    reilNodes.push(el('circle',{cx:X(xm),cy:Y(0),r:9,fill:'#ffffff',opacity:0.18},g));
+  });
+}
+
+function drawRuler(){
+  const g = group('ruler');
+  const col = state.mode==='night' ? '#5d7183' : '#2a3022';
+  el('line',{x1:X(-28),y1:Y(0),x2:X(-28),y2:Y(RWY_LEN),stroke:col,'stroke-width':0.6,opacity:0.6},g);
+  for (let d=0; d<=RWY_LEN; d+=300){
+    const rem = RWY_LEN-d;
+    const key = (rem===900||rem===300);
+    el('line',{x1:X(-28),y1:Y(d),x2:X(-24),y2:Y(d),stroke:key?C.yellow:col,'stroke-width':key?1.1:0.6,opacity:0.85},g);
+    label(g, String(rem), X(-29), Y(d)+3.5, 'end', key ? C.yellow : col, 10);
+  }
+  label(g,'metres remaining', X(-29), Y(RWY_LEN)-8, 'end', col, 10);
+}
+
+function drawCallouts(sys){
+  const g = group('labels');
+  const R = 430, RT = 782, L = 215;
+  callout(g,'Runway end lights, red',        X(6),        Y(RWY_LEN), R, Y(RWY_LEN)-14,'start');
+  callout(g,'Edge lights yellow, last 600 m',X(HALF_W),   Y(2700),    R, Y(2760),'start');
+  callout(g,'Threshold and wing bars, green',X(HALF_W+9), Y(0),       R, Y(70),'start');
+  if (state.show.taxiway){
+    callout(g,'Parallel taxiway A', X(130), Y(2600), RT, Y(2700),'start');
+    callout(g,'Rapid exit A3, lead-off lights',              X(80),  Y(2210), RT, Y(2380),'start');
+    callout(g,'Runway holding position, 90 m',                X(90),  Y(1317), RT, Y(1430),'start');
+    callout(g,'Entry A1 at the threshold',                    X(90),  Y(90),   RT, Y(190),'start');
+    if (state.lvp) callout(g,'Stop bar and guard lights', X(90), Y(2217), RT, Y(2090),'start');
+    callout(g,'90° exit B1',  X(-70), Y(1650), L, Y(1790),'end');
+  }
+  callout(g,'Red and white, 900 m to go', X(0),  Y(2100), L, Y(2040),'end');
+  callout(g,'Touchdown zone barrettes',   X(-7), Y(660),  L, Y(740),'end');
+  callout(g,(state.gsi==='vasi'?'VASI, abeam the aiming point':'PAPI, abeam the aiming point'),
+            X(-(HALF_W+15)), Y(300), L, Y(400),'end');
+  if (state.show.markings) callout(g,'Blast pad chevrons', X(-12), Y(-40), L, Y(-40),'end');
+  if (sys.sideRows) callout(g,'Supplementary side rows, red', X(-sys.sideRows.offset), Y(-120), L, Y(-140),'end');
+  if (sys.crossbars.length) callout(g, Math.round(sys.crossbars[0].d)+' m crossbar',
+            X(sys.crossbars[0].half), Y(-sys.crossbars[0].d), R, Y(-sys.crossbars[0].d),'start');
+  callout(g,'Centreline barrettes, '+Math.round(sys.len)+' m', X(0), Y(-sys.len+40), R, Y(-sys.len+60),'start');
+}
+
+function drawHaze(){
+  if (!state.rvrIdx) return;
+  const g = group('haze');
+  const amt = state.rvrIdx/7;
+  const defs = el('defs',{},g);
+  const rg = el('radialGradient',{id:'hz',cx:'50%',cy:'72%',r:'64%'},defs);
+  const col = state.mode==='night' ? '#2a3742' : '#c9d0cc';
+  el('stop',{offset:'0%','stop-color':col,'stop-opacity':0},rg);
+  el('stop',{offset:'100%','stop-color':col,'stop-opacity':1},rg);
+  el('rect',{x:0,y:0,width:960,height:1070,fill:'url(#hz)',opacity:0.12+amt*0.6},g);
+}
+
+/* ═══════════ cockpit view ═══════════ */
+const PV = {W:880, H:440, f:1150, cx:440, cy:112};
+
+function eyePos(){
+  const ang = (state.gsi==='none') ? 3.0 : PAPI[state.papi].ang;
+  const g = state.eyeH / Math.tan(ang*Math.PI/180);   // ground distance to the aiming point
+  return {y: 300 - g, h: state.eyeH, ang:ang};
+}
+function proj(xm, ym, zm, eye){
+  const dy = ym - eye.y;
+  if (dy < 30) return null;
+  const sx = PV.cx + PV.f*xm/dy;
+  const sy = PV.cy + PV.f*(eye.h - (zm||0))/dy;
+  if (sy > PV.H + 120 || sx < -400 || sx > PV.W+400) return null;
+  return {x:sx, y:sy, d:Math.sqrt(dy*dy + xm*xm + eye.h*eye.h), dy:dy};
+}
+function fogAlpha(d){
+  const R = rvrEff();
+  return Math.max(0, Math.min(1, Math.exp(-2.0*d/R)));
+}
+
+function renderPilot(){
+  clear(pv);
+  if (!state.show.cockpit){ document.getElementById('pilotSection').hidden = true; return; }
+  document.getElementById('pilotSection').hidden = false;
+
+  const eye = eyePos();
+  const night = state.mode === 'night';
+  const sys = ALS[state.als];
+
+  // sky and ground
+  el('rect',{x:0,y:0,width:PV.W,height:PV.cy,fill: night?'#070c12':'#8d9aa5'},pv);
+  el('rect',{x:0,y:PV.cy,width:PV.W,height:PV.H-PV.cy,fill: night?'#04070a':'#59634b'},pv);
+  el('line',{x1:0,y1:PV.cy,x2:PV.W,y2:PV.cy,stroke: night?'#16222c':'#7d8a76','stroke-width':1},pv);
+
+  const surf = group('pvsurf', pv);
+  const marks = group('pvmarks', pv);
+  const lamps = [];
+
+  // runway surface in strips, which also clips anything behind the eye
+  for (let d=0; d<RWY_LEN; d+=60){
+    const q = quad(-HALF_W,d, HALF_W,d, HALF_W,d+60, -HALF_W,d+60, eye);
+    if (!q) continue;
+    el('polygon',{points:q, fill: night?'#0d1319':'#53575a', opacity: 0.35+0.65*fogAlpha(dist(d,eye))},surf);
+  }
+  if (state.show.taxiway){
+    const tf = night?'#0b1117':'#4e5256';
+    taxiPolys().forEach(function(poly){
+      const q = projPoly(poly, eye);
+      if (q) el('polygon',{points:q, fill:tf, opacity:0.35+0.65*fogAlpha(Math.abs(poly[0][1]-eye.y))},surf);
+    });
+  }
+  if (state.show.markings){
+    const mc = night?'#8d97a0':'#eef1f2';
+    for (let d=200; d<RWY_LEN-60; d+=50){
+      const q = quad(-0.45,d, 0.45,d, 0.45,d+30, -0.45,d+30, eye);
+      if (q) el('polygon',{points:q,fill:mc,opacity:0.55*fogAlpha(dist(d,eye))},marks);
+    }
+    for (let i=-4;i<=4;i++){
+      if (!i) continue;
+      const off = (i>0?(i-0.5):(i+0.5))*4.2;
+      const q = quad(off-0.9,6, off+0.9,6, off+0.9,36, off-0.9,36, eye);
+      if (q) el('polygon',{points:q,fill:mc,opacity:0.6*fogAlpha(dist(20,eye))},marks);
+    }
+    [[-14,300],[14,300]].forEach(function(a){
+      const q = quad(a[0]-3,a[1], a[0]+3,a[1], a[0]+3,a[1]+50, a[0]-3,a[1]+50, eye);
+      if (q) el('polygon',{points:q,fill:mc,opacity:0.6*fogAlpha(dist(a[1],eye))},marks);
+    });
+  }
+
+  // collect every light as a 3D point
+  const push = (xm,ym,col,kind) => lamps.push({x:xm,y:ym,c:col,k:kind});
+
+  if (lit('approach') && !state.fail.approach){
+    const c = sys.centre, centreTo = c.to || sys.len;
+    for (let d=c.spacing; d<=centreTo+0.5; d+=c.spacing){
+      const n = (c.innerTo && d<=c.innerTo) ? c.innerLights : c.lights;
+      const sp = (c.innerTo && d<=c.innerTo) ? c.innerSpan : c.span;
+      for (let i=0;i<n;i++) push((i-(n-1)/2)*sp, -d, C.white, 'approach');
+    }
+    if (sys.flashers && sys.flashers.to > centreTo + 1){
+      for (let d=Math.max(centreTo + c.spacing, sys.flashers.from); d<=sys.flashers.to+0.5; d+=c.spacing)
+        push(0, -d, C.white, 'approach');
+    }
+    sys.crossbars.forEach(function(cb){
+      const n = Math.max(3, Math.round(cb.half*2/1.5)+1);
+      for (let i=0;i<n;i++) push(-cb.half + i*(cb.half*2)/(n-1), -cb.d, C.white, 'approach');
+    });
+    if (sys.sideRows){
+      for (let d=sys.sideRows.spacing; d<=sys.sideRows.to+0.5; d+=sys.sideRows.spacing){
+        for (let i=0;i<sys.sideRows.lights;i++){
+          const o = (i-(sys.sideRows.lights-1)/2)*1.5;
+          push(-sys.sideRows.offset+o, -d, C.red, 'approach');
+          push( sys.sideRows.offset+o, -d, C.red, 'approach');
+        }
+      }
+    }
+  }
+  if (lit('threshold')){
+    for (let i=-7;i<=7;i++) push(i*3, 0, C.green, 'threshold');
+    for (let i=0;i<5;i++){ push(-(HALF_W+3+i*3),0,C.green,'threshold'); push(HALF_W+3+i*3,0,C.green,'threshold'); }
+  }
+  if (lit('edge') && !state.fail.edge)
+    for (let d=0; d<=RWY_LEN; d+=60){
+      const col = d>=RWY_LEN-600 ? C.yellow : C.white;
+      push(-HALF_W,d,col,'edge'); push(HALF_W,d,col,'edge');
+    }
+  if (lit('centreline') && !state.fail.centreline){
+    let flip=false;
+    for (let d=30; d<=RWY_LEN-30; d+=30){
+      let col;
+      if (d<RWY_LEN-900) col=C.white;
+      else if (d<RWY_LEN-300){ col = flip?C.red:C.white; flip=!flip; }
+      else col=C.red;
+      push(0,d,col,'centreline');
+    }
+  }
+  if (lit('tdz') && !state.fail.tdz)
+    for (let d=30; d<=900; d+=30)
+      for (let i=-1;i<=1;i++){ push(-7+i*1.5,d,C.white,'tdz'); push(7+i*1.5,d,C.white,'tdz'); }
+  if (lit('threshold')) for (let i=-7;i<=7;i++) push(i*3, RWY_LEN, C.red, 'end');
+  if (state.show.taxiway && lit('taxiway')){
+    sampled(NET.parallel, 60).forEach(function(p){ push(p.x, p.y, C.green, 'twy'); });
+    sampled(NET.parallel, 120).forEach(function(p){
+      push(p.x - p.uy*TW_HALF, p.y + p.ux*TW_HALF, C.blue, 'twy');
+      push(p.x + p.uy*TW_HALF, p.y - p.ux*TW_HALF, C.blue, 'twy');
+    });
+    NET.links.forEach(function(l){
+      sampled(leadPath(l), 15).forEach(function(p,i){
+        const inside = Math.abs(p.x) < SENS_X;
+        push(p.x, p.y, inside ? (i%2 ? C.yellow : C.green) : C.green, 'twy');
+      });
+      if (state.lvp && !state.fail.stopbar && lit('stopbar')){
+        const h = holdPoint(l), px=-h.uy, py=h.ux;
+        for (let k=0;k<=8;k++){
+          const t=(k/8-0.5)*2*TW_HALF;
+          push(h.x+px*t-h.ux*6, h.y+py*t-h.uy*6, C.red, 'twy');
+        }
+      }
+    });
+  }
+  if (state.gsi==='papi' && lit('papi')){
+    const pat = PAPI[state.papi].pat;
+    for (let i=0;i<4;i++) push(-(HALF_W+15+i*9), 300, pat[i]==='w'?C.white:C.red, 'papi');
+  } else if (state.gsi==='vasi' && lit('papi')){
+    const v = VASI[state.papi];
+    for (let i=0;i<3;i++){
+      push(-(HALF_W+15+i*7),300, v.near==='w'?C.white:C.red,'papi');
+      push(-(HALF_W+15+i*7),450, v.far ==='w'?C.white:C.red,'papi');
+    }
+  }
+
+  // project, sort far to near, draw
+  const drawn = [];
+  const lightsG = group('pvlights', pv);
+  lamps.forEach(function(L){
+    const p = proj(L.x, L.y, 0.3, eye);
+    if (!p) return;
+    const a = fogAlpha(p.d);
+    if (a < 0.02) return;
+    drawn.push({p:p, c:L.c, a:a, k:L.k});
+  });
+  drawn.sort((a,b) => b.p.dy - a.p.dy);
+  drawn.forEach(function(o){
+    const r = Math.max(1.1, Math.min(7, 950/o.p.dy));
+    if (night){
+      el('circle',{cx:o.p.x,cy:o.p.y,r:r*3.4,fill:o.c,opacity:0.13*o.a},lightsG);
+      el('circle',{cx:o.p.x,cy:o.p.y,r:r*1.8,fill:o.c,opacity:0.28*o.a},lightsG);
+    }
+    el('circle',{cx:o.p.x,cy:o.p.y,r:r,fill:o.c,opacity:o.a},lightsG);
+  });
+
+  // fog veil
+  if (state.rvrIdx){
+    const amt = state.rvrIdx/7;
+    el('rect',{x:0,y:0,width:PV.W,height:PV.H,
+               fill: night?'#243040':'#cdd3ce', opacity:0.10+amt*0.35},pv);
+  }
+
+  drawHud(drawn, eye);
+}
+
+function projPoly(pts, eye){
+  const out = [];
+  for (let i=0;i<pts.length;i++){
+    const q = proj(pts[i][0], pts[i][1], 0, eye);
+    if (!q) return null;
+    out.push(q.x+','+q.y);
+  }
+  return out.join(' ');
+}
+function dist(d, eye){ return Math.abs(d - eye.y); }
+function quad(x1,y1,x2,y2,x3,y3,x4,y4,eye){
+  const a=proj(x1,y1,0,eye),b=proj(x2,y2,0,eye),c=proj(x3,y3,0,eye),d=proj(x4,y4,0,eye);
+  if (!a||!b||!c||!d) return null;
+  return [a.x+','+a.y, b.x+','+b.y, c.x+','+c.y, d.x+','+d.y].join(' ');
+}
+
+function drawHud(drawn, eye){
+  const g = group('pvhud', pv);
+  const col = state.mode==='night' ? '#9fb3c2' : '#17200f';
+  const ft = Math.round(state.eyeH/FT);
+  label(g,'Radio height '+ft+' ft', 16, 26, 'start', col, 14);
+  label(g,'RVR '+(rvrM() ? rvrM()+' m' : 'unrestricted'), 16, 44, 'start', col, 14);
+  label(g,'Glide path '+eye.ang.toFixed(1)+'°', 16, 62, 'start', col, 14);
+  const dThr = Math.round(-eye.y);
+  label(g, dThr > 0 ? dThr+' m to the threshold' : Math.abs(dThr)+' m past the threshold',
+        16, 80, 'start', col, 14);
+
+  const vis = visualRef(drawn);
+  label(g, vis.text, PV.W-16, 26, 'end', vis.ok ? '#8fe3ae' : '#ffb3a1', 14);
+  label(g, vis.sub,  PV.W-16, 44, 'end', col, 13);
+}
+
+function visualRef(drawn){
+  const seen = {};
+  drawn.forEach(function(o){ if (o.a > 0.12) seen[o.k] = (seen[o.k]||0)+1; });
+  const atDh = state.eyeH <= (state.cat==='I'?62:state.cat==='II'?31:16);
+  const hasApproach = (seen.approach||0) >= 6;
+  const hasThr = (seen.threshold||0) >= 3;
+  const hasTdz = (seen.tdz||0) >= 3;
+  const hasCl  = (seen.centreline||0) >= 3;
+
+  if (!atDh) return {ok:true, text:'Above decision height', sub:'Descending on the '+ (state.gsi==='none'?'ILS':'slope')};
+
+  if (state.cat === 'I'){
+    if (hasApproach || hasThr) return {ok:true, text:'Continue', sub:'Approach lights or threshold in sight at 200 ft'};
+    return {ok:false, text:'Go around', sub:'No visual reference at decision height'};
+  }
+  if (state.cat === 'II'){
+    if ((hasTdz || hasCl) && hasThr) return {ok:true, text:'Continue', sub:'Threshold and touchdown zone in sight at 100 ft'};
+    if (hasApproach) return {ok:false, text:'Go around', sub:'Approach lights only — CAT II needs the touchdown zone'};
+    return {ok:false, text:'Go around', sub:'No visual reference at decision height'};
+  }
+  if (hasCl || hasTdz) return {ok:true, text:'Continue', sub:'Centreline segment in sight — CAT III visual segment met'};
+  return {ok:false, text:'Go around', sub:'No usable visual segment'};
+}
+
+/* ═══════════ readout and minima ═══════════ */
+function highestUsableCat(){
+  let best = 'IIIB', reasons = [];
+  CAT_ORDER.slice().reverse().some(function(c){
+    const bad = CAT[c].needs.filter(k => state.fail[k]);
+    if (bad.length === 0){ best = c; return true; }
+    return false;
+  });
+  const allBad = CAT_ORDER.every(c => CAT[c].needs.some(k => state.fail[k]));
+  if (allBad) best = null;
+  Object.keys(state.fail).forEach(function(k){ if (state.fail[k]) reasons.push(FAIL_NAME[k]); });
+  return {cat:best, reasons:reasons};
+}
+
+function updateReadout(){
+  const sys = ALS[state.als], cat = CAT[state.cat];
+  const gsiName = state.gsi==='papi' ? PAPI[state.papi].name + ', ' + PAPI[state.papi].angTxt
+                : state.gsi==='vasi' ? VASI[state.papi].name
+                : 'none installed';
+  document.getElementById('roSys').textContent = sys.short;
+  document.getElementById('roDh').textContent = cat.dh;
+  document.getElementById('roRvr').textContent = cat.rvrTxt;
+  document.getElementById('roPapi').textContent = gsiName;
+  document.getElementById('roAdvice').innerHTML =
+    state.gsi==='none' ? '<b>No slope guidance.</b> ' + sys.note
+                       : '<b>'+PAPI[state.papi].name+'.</b> '+PAPI[state.papi].advice;
+
+  const box = document.getElementById('roStatus');
+  const h = highestUsableCat();
+  const rv = rvrM();
+  let html = '';
+  if (h.reasons.length){
+    if (!h.cat){
+      html = '<div class="alert"><b>Runway not available for instrument approaches at night.</b> Unserviceable: '+h.reasons.join(', ')+'.</div>';
+    } else if (CAT_ORDER.indexOf(h.cat) < CAT_ORDER.indexOf(state.cat)){
+      html = '<div class="alert"><b>Downgraded to CAT '+h.cat+'.</b> '+h.reasons.join(', ')+
+             ' unserviceable, so CAT '+state.cat+' minima are not available. New decision height '+CAT[h.cat].dh+
+             ', minimum RVR '+CAT[h.cat].rvrTxt+'.</div>';
+    } else {
+      html = '<div class="alert"><b>Unserviceable:</b> '+h.reasons.join(', ')+'. CAT '+state.cat+' is still available.</div>';
+    }
+  }
+  if (rv && rv < cat.rvr && !html){
+    html = '<div class="alert"><b>RVR below minima.</b> Reported '+rv+' m against a CAT '+state.cat+' minimum of '+cat.rvrTxt+'.</div>';
+  } else if (rv && rv < cat.rvr){
+    html += '<div class="alert"><b>RVR below minima.</b> Reported '+rv+' m against '+cat.rvrTxt+'.</div>';
+  }
+  if (!html && state.lvp) html = '<div class="ok">Low visibility procedures in force. Stop bars protect the runway — never cross a lit red stop bar.</div>';
+  box.innerHTML = html;
+}
+
+/* ═══════════ animation ═══════════ */
+let seqIdx = 0;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+setInterval(function(){
+  if (!reduceMotion){
+    if (lit('flashers') && flashGroups.length){
+      const order = flashGroups.slice().reverse();
+      const i = seqIdx % (order.length + 5);
+      order.forEach(function(gg,k){ gg.style.opacity = (k===i) ? '1' : (i<order.length ? '0.6' : '1'); });
+    }
+    if (lit('reil') && reilNodes.length){
+      const on = (seqIdx % 12) < 2;
+      reilNodes.forEach(function(n){ n.style.opacity = on ? '' : '0.08'; });
+    }
+    if (guardNodes.length){
+      const a = (seqIdx % 10) < 5;
+      guardNodes.forEach(function(pair){
+        pair[0].style.opacity = a ? '1' : '0.15';
+        pair[1].style.opacity = a ? '0.15' : '1';
+      });
+    }
+  }
+  seqIdx++;
+}, 60);
+
+/* ═══════════ png export ═══════════ */
+function savePng(node, w, h, name, bg){
+  const clone = node.cloneNode(true);
+  clone.setAttribute('width', w*2);
+  clone.setAttribute('height', h*2);
+  const xml = new XMLSerializer().serializeToString(clone);
+  const img = new Image();
+  img.onload = function(){
+    const cv = document.createElement('canvas');
+    cv.width = w*2; cv.height = h*2;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img,0,0,cv.width,cv.height);
+    try {
+      const a = document.createElement('a');
+      a.download = name; a.href = cv.toDataURL('image/png'); a.click();
+    } catch(e){ window.print(); }
+  };
+  img.onerror = function(){ window.print(); };
+  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+}
+document.getElementById('pngPlan').addEventListener('click', function(){
+  savePng(svg, 960, 1070, 'runway-plan.png', state.mode==='night' ? '#05080b' : '#5f6a55');
+});
+document.getElementById('pngPilot').addEventListener('click', function(){
+  savePng(pv, PV.W, PV.H, 'cockpit-view.png', state.mode==='night' ? '#04070a' : '#59634b');
+});
+
+/* ═══════════ controls ═══════════ */
+function redraw(){ renderPlan(); renderPilot(); updateReadout(); }
+
+function wireSeg(id, apply){
+  const root = document.getElementById(id);
+  root.addEventListener('click', function(e){
+    const b = e.target.closest('button');
+    if (!b || !root.contains(b)) return;
+    root.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    apply(b.dataset.v);
+    redraw();
+  });
+}
+wireSeg('segDay',   v => state.mode = v);
+wireSeg('segCat',   v => state.cat = v);
+wireSeg('segGsi',   v => state.gsi = v);
+wireSeg('papiList', v => state.papi = v);
+wireSeg('segEye',   v => state.eyeH = Number(v));
+
+document.getElementById('selAls').addEventListener('change', function(e){
+  state.als = e.target.value; redraw();
+});
+function syncSwitches(){
+  const on = state.lights.master;
+  document.querySelectorAll('#switches .sw').forEach(function(row){
+    if (!row.classList.contains('master')) row.classList.toggle('off', !on);
+  });
+}
+document.getElementById('switches').addEventListener('change', function(e){
+  const c = e.target.dataset.c;
+  if (!c) return;
+  state.lights[c] = e.target.checked;
+  syncSwitches();
+  redraw();
+});
+document.getElementById('checks').addEventListener('change', function(e){
+  if (!e.target.dataset.k) return;
+  state.show[e.target.dataset.k] = e.target.checked; redraw();
+});
+document.getElementById('fails').addEventListener('change', function(e){
+  if (!e.target.dataset.k) return;
+  state.fail[e.target.dataset.k] = e.target.checked; redraw();
+});
+document.getElementById('lvp').addEventListener('change', function(e){
+  state.lvp = e.target.checked; redraw();
+});
+document.getElementById('desig').addEventListener('input', function(e){
+  state.desig = e.target.value.toUpperCase() || '09L'; redraw();
+});
+document.getElementById('rvr').addEventListener('input', function(e){
+  state.rvrIdx = Number(e.target.value);
+  const v = rvrM();
+  document.getElementById('rvrTag').textContent = v ? v+' m' : 'unrestricted';
+  redraw();
+});
+
+syncSwitches();
+redraw();
+})();
+</script>
+</body>
+</html>

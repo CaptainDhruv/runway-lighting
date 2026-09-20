@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approach and runway lighting simulator — CAT II / III</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#080d12;
+  --panel:#111a22;
+  --panel-2:#16212b;
+  --line:#243342;
+  --line-soft:#1b2732;
+  --text:#dde6ee;
+  --text-dim:#8296a6;
+  --text-faint:#586a79;
+  --accent:#f0a93c;
+
+  --lt-white:#fff3d8;
+  --lt-red:#ff3b30;
+  --lt-green:#16e06a;
+  --lt-yellow:#ffd21f;
+  --lt-blue:#3a7bff;
+
+  --ui:'Barlow Semi Condensed',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink);
+  color:var(--text);
+  font-family:var(--ui);
+  font-size:16px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+
+.shell{
+  display:grid;
+  grid-template-columns:320px minmax(0,1fr);
+  min-height:100vh;
+}
+
+/* ─────────────── control rail ─────────────── */
+.rail{
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  padding:22px 20px 40px;
+  overflow-y:auto;
+  max-height:100vh;
+  position:sticky;
+  top:0;
+}
+.masthead{margin-bottom:26px}
+.masthead h1{
+  font-size:25px;
+  font-weight:600;
+  letter-spacing:-.01em;
+  margin:0 0 4px;
+  line-height:1.15;
+}
+.masthead p{
+  margin:0;
+  color:var(--text-dim);
+  font-size:14px;
+}
+
+.block{margin-bottom:22px}
+.block > h2{
+  font-size:13px;
+  font-weight:600;
+  color:var(--text-faint);
+  margin:0 0 9px;
+  letter-spacing:.02em;
+}
+
+.seg{display:flex;gap:4px}
+.seg button{
+  flex:1;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  color:var(--text-dim);
+  font-family:var(--ui);
+  font-size:14px;
+  padding:7px 4px;
+  border-radius:2px;
+  cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.seg button:hover{color:var(--text);border-color:#33475a}
+.seg button[aria-pressed="true"]{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#151007;
+  font-weight:600;
+}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.papi-list{display:flex;flex-direction:column;gap:4px}
+.papi-list button{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-left:3px solid var(--line);
+  color:var(--text-dim);
+  font-family:var(--ui);
+  font-size:15px;
+  text-align:left;
+  padding:7px 10px;
+  border-radius:2px;
+  cursor:pointer;
+}
+.papi-list button:hover{color:var(--text)}
+.papi-list button[aria-pressed="true"]{
+  color:var(--text);
+  background:#1c2a36;
+  border-left-color:var(--accent);
+}
+.papi-list button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chip{display:inline-flex;gap:3px;flex:0 0 auto}
+.chip i{width:9px;height:9px;border-radius:50%;display:block}
+.chip i.w{background:var(--lt-white)}
+.chip i.r{background:var(--lt-red)}
+.papi-angle{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--text-faint)}
+
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
+.checks label{
+  display:flex;align-items:center;gap:7px;
+  font-size:14px;color:var(--text-dim);cursor:pointer;
+}
+.checks input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.checks label:hover{color:var(--text)}
+
+.field{display:flex;align-items:center;gap:10px}
+.field input[type=text]{
+  width:86px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:16px;
+  letter-spacing:.06em;
+  padding:6px 9px;
+  border-radius:2px;
+  text-transform:uppercase;
+}
+.field input[type=text]:focus{outline:none;border-color:var(--accent)}
+.field span{font-size:14px;color:var(--text-dim)}
+
+input[type=range]{width:100%;accent-color:var(--accent)}
+
+.readout{
+  border:1px solid var(--line);
+  border-radius:2px;
+  background:var(--panel-2);
+  padding:12px 13px;
+}
+.readout .rline{
+  display:flex;justify-content:space-between;gap:12px;
+  font-size:14px;padding:3px 0;
+}
+.readout .rline span:first-child{color:var(--text-faint)}
+.readout .rline span:last-child{font-family:var(--mono);font-size:13px}
+.advice{
+  margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);
+  font-size:14px;color:var(--text-dim);
+}
+.advice b{color:var(--text);font-weight:600}
+
+/* ─────────────── stage ─────────────── */
+.stage{
+  padding:24px 28px 56px;
+  overflow-x:auto;
+}
+.stage-head{
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.stage-head h2{font-size:19px;font-weight:600;margin:0}
+.stage-head p{margin:0;color:var(--text-dim);font-size:14px}
+
+.board{
+  border:1px solid var(--line);
+  border-radius:3px;
+  overflow:hidden;
+  transition:background .35s;
+}
+.board.night{background:#05080b}
+.board.day{background:#5f6a55}
+svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+
+.legend{
+  margin-top:18px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:6px 22px;
+  max-width:980px;
+}
+.legend div{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--text-dim)}
+.legend b{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.footnote{
+  margin-top:22px;max-width:70ch;font-size:14px;color:var(--text-faint);
+}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  .stage{padding:20px 14px 40px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="masthead">
+      <h1>Approach and runway lighting</h1>
+      <p>Precision approach CAT I / II / III, plan view, with PAPI</p>
+    </div>
+
+    <div class="block">
+      <h2>Time of day</h2>
+      <div class="seg" id="segDay">
+        <button data-v="night" aria-pressed="true">Night</button>
+        <button data-v="day" aria-pressed="false">Day</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Approach category</h2>
+      <div class="seg" id="segCat">
+        <button data-v="I" aria-pressed="false">CAT I</button>
+        <button data-v="II" aria-pressed="false">CAT II</button>
+        <button data-v="III" aria-pressed="true">CAT III</button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Glide path — what PAPI shows</h2>
+      <div class="papi-list" id="papiList">
+        <button data-v="high" aria-pressed="false">
+          <span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i></span>
+          Too high <span class="papi-angle">&gt;3.5°</span>
+        </button>
+        <button data-v="slightHigh" aria-pressed="false">
+          <span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="r"></i></span>
+          Slightly high <span class="papi-angle">3.2°</span>
+        </button>
+        <button data-v="onPath" aria-pressed="true">
+          <span class="chip"><i class="w"></i><i class="w"></i><i class="r"></i><i class="r"></i></span>
+          On glide path <span class="papi-angle">3.0°</span>
+        </button>
+        <button data-v="slightLow" aria-pressed="false">
+          <span class="chip"><i class="w"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>
+          Slightly low <span class="papi-angle">2.8°</span>
+        </button>
+        <button data-v="low" aria-pressed="false">
+          <span class="chip"><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>
+          Too low <span class="papi-angle">&lt;2.5°</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Show</h2>
+      <div class="checks" id="checks">
+        <label><input type="checkbox" data-k="approach" checked> Approach</label>
+        <label><input type="checkbox" data-k="tdz" checked> Touchdown zone</label>
+        <label><input type="checkbox" data-k="centreline" checked> Centreline</label>
+        <label><input type="checkbox" data-k="edge" checked> Edge</label>
+        <label><input type="checkbox" data-k="papi" checked> PAPI</label>
+        <label><input type="checkbox" data-k="taxiway" checked> Exit taxiway</label>
+        <label><input type="checkbox" data-k="flashers" checked> Flashers</label>
+        <label><input type="checkbox" data-k="reil"> REIL</label>
+        <label><input type="checkbox" data-k="markings" checked> Paint</label>
+        <label><input type="checkbox" data-k="labels" checked> Callouts</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Runway designator</h2>
+      <div class="field">
+        <input type="text" id="desig" value="09L" maxlength="3" spellcheck="false">
+        <span>Number and side letter</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Visibility — RVR <span id="rvrTag" style="font-family:var(--mono);font-size:13px;color:var(--text)">unrestricted</span></h2>
+      <input type="range" id="rvr" min="0" max="100" value="0" step="1">
+    </div>
+
+    <div class="block">
+      <h2>Readout</h2>
+      <div class="readout">
+        <div class="rline"><span>System</span><span id="roSys">—</span></div>
+        <div class="rline"><span>Decision height</span><span id="roDh">—</span></div>
+        <div class="rline"><span>Minimum RVR</span><span id="roRvr">—</span></div>
+        <div class="rline"><span>PAPI signal</span><span id="roPapi">—</span></div>
+        <div class="advice" id="roAdvice"></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-head">
+      <h2 id="boardTitle">Runway 09L — plan view</h2>
+      <p>3000 m runway, 45 m wide. Approach system 900 m. Lateral scale exaggerated for clarity.</p>
+    </div>
+
+    <div class="board night" id="board">
+      <svg id="scene" viewBox="0 0 620 1070" role="img" aria-label="Plan view of a precision approach and runway lighting system"></svg>
+    </div>
+
+    <div class="legend">
+      <div><b style="background:#fff3d8"></b> White — approach, centreline, touchdown zone, edge</div>
+      <div><b style="background:#ff3b30"></b> Red — side rows, last 300 m, runway end</div>
+      <div><b style="background:#16e06a"></b> Green — threshold, wing bars, taxiway centreline</div>
+      <div><b style="background:#ffd21f"></b> Yellow — edge lights in the last 600 m</div>
+      <div><b style="background:#3a7bff"></b> Blue — taxiway edge</div>
+      <div><b style="background:linear-gradient(90deg,#ff3b30 50%,#fff3d8 50%)"></b> Red and white — 900 m to 300 m remaining</div>
+    </div>
+
+    <p class="footnote">
+      Spacings follow ICAO Annex 14 in principle — approach centreline barrettes every 30 m, crossbars at 150 m and 300 m,
+      red side rows over the inner 270 m, touchdown zone barrettes every 30 m to 900 m, edge lights every 60 m,
+      centreline lights every 15 m. Counts on screen are thinned so individual fixtures stay readable.
+    </p>
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ───────── geometry ───────── */
+const SX = 3.0;          // px per metre across the runway (exaggerated)
+const SY = 0.24;         // px per metre along the runway
+const CX = 300;          // centreline, px
+const YTHR = 790;        // threshold, px
+const RWY_LEN = 3000;    // m
+const HALF_W = 22.5;     // m
+const APP_LEN = 900;     // m
+
+const X = m => CX + m * SX;
+const Y = m => YTHR - m * SY;          // m measured along the runway from the threshold; negative = approach
+
+const C = {
+  white:'#fff3d8', red:'#ff3b30', green:'#16e06a', yellow:'#ffd21f', blue:'#3a7bff'
+};
+
+const NS = 'http://www.w3.org/2000/svg';
+
+/* ───────── state ───────── */
+const state = {
+  mode:'night',
+  cat:'III',
+  papi:'onPath',
+  desig:'09L',
+  rvr:0,
+  show:{
+    approach:true, tdz:true, centreline:true, edge:true, papi:true,
+    taxiway:true, flashers:true, reil:false, markings:true, labels:true
+  }
+};
+
+const PAPI = {
+  high:      {pat:['w','w','w','w'], name:'Four white',            angle:'above 3.5°', advice:'Well above the slope. Reduce power and increase the rate of descent to regain 3°.'},
+  slightHigh:{pat:['w','w','w','r'], name:'Three white, one red',  angle:'about 3.2°', advice:'A little high. A small correction brings the third unit back to red.'},
+  onPath:    {pat:['w','w','r','r'], name:'Two white, two red',    angle:'3.0°',       advice:'On slope. Two white nearest the runway, two red outboard — hold what you have.'},
+  slightLow: {pat:['w','r','r','r'], name:'One white, three red',  angle:'about 2.8°', advice:'A little low. Shallow the descent until the second unit turns white again.'},
+  low:       {pat:['r','r','r','r'], name:'Four red',              angle:'below 2.5°', advice:'Well below the slope. Add power and arrest the descent — obstacle clearance is not assured.'}
+};
+
+const CAT = {
+  I:  {sys:'Precision approach CAT I',   dh:'200 ft', rvr:'550 m', sideRows:false, tdz:false, xbar300:false},
+  II: {sys:'Precision approach CAT II',  dh:'100 ft', rvr:'300 m', sideRows:true,  tdz:true,  xbar300:true},
+  III:{sys:'Precision approach CAT III', dh:'below 100 ft or none', rvr:'175 m or less', sideRows:true, tdz:true, xbar300:true}
+};
+
+/* ───────── svg helpers ───────── */
+const svg = document.getElementById('scene');
+
+function el(tag, attrs, parent){
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+
+function group(id, parent){ return el('g', {id:id}, parent || svg); }
+
+// one light fixture: soft halo at night, plain dot by day
+function light(g, xm, ym, colour, r){
+  r = r || 2.3;
+  const cx = X(xm), cy = Y(ym);
+  if (state.mode === 'night'){
+    el('circle', {cx:cx, cy:cy, r:r*3.6, fill:colour, opacity:0.10}, g);
+    el('circle', {cx:cx, cy:cy, r:r*1.9, fill:colour, opacity:0.22}, g);
+    el('circle', {cx:cx, cy:cy, r:r,     fill:colour, opacity:1}, g);
+  } else {
+    el('circle', {cx:cx, cy:cy, r:r, fill:colour, opacity:0.85}, g);
+    el('circle', {cx:cx, cy:cy, r:r, fill:'none', stroke:'#1b1f18', 'stroke-width':0.5, opacity:0.5}, g);
+  }
+}
+
+// a barrette: n lights in a row across the runway, centred on xm
+function barrette(g, xm, ym, n, spacing, colour, r){
+  const start = xm - ((n-1)*spacing)/2;
+  for (let i=0;i<n;i++) light(g, start + i*spacing, ym, colour, r);
+}
+
+function paint(g, xm, ym, wM, lM, fill, opacity){
+  el('rect', {
+    x:X(xm - wM/2), y:Y(ym + lM),
+    width:wM*SX, height:lM*SY,
+    fill:fill, opacity:(opacity===undefined?0.85:opacity)
+  }, g);
+}
+
+function callout(g, text, lx, ly, tx, ty, anchor){
+  const col = state.mode === 'night' ? '#93a6b6' : '#1d2318';
+  el('polyline', {
+    points:[lx,ly,(lx+tx)/2,ty,tx,ty].join(' '),
+    fill:'none', stroke:col, 'stroke-width':0.7, opacity:0.75
+  }, g);
+  const t = el('text', {
+    x:tx + (anchor==='end' ? -6 : 6), y:ty + 3.5,
+    'text-anchor':(anchor==='end'?'end':'start'),
+    fill:col, 'font-family':"'Barlow Semi Condensed',sans-serif", 'font-size':11.5
+  }, g);
+  t.textContent = text;
+}
+
+/* ───────── scene ───────── */
+let flashGroups = [];   // sequenced flasher barrettes, outer → inner
+let reilNodes = [];
+
+function render(){
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  flashGroups = [];
+  reilNodes = [];
+
+  const cat = CAT[state.cat];
+  const night = state.mode === 'night';
+
+  drawGround(night);
+  if (state.show.markings) drawPaint(night);
+  drawTaxiwayPaint(night);
+
+  if (state.show.approach) drawApproach(cat);
+  drawThreshold();
+  if (state.show.edge) drawEdge();
+  if (state.show.centreline) drawCentreline();
+  if (state.show.tdz && cat.tdz) drawTdz();
+  drawEnd();
+  if (state.show.taxiway) drawTaxiwayLights();
+  if (state.show.papi) drawPapi();
+  if (state.show.reil) drawReil();
+  if (state.show.labels) drawCallouts(cat);
+  drawHaze();
+
+  document.getElementById('board').className = 'board ' + state.mode;
+  document.getElementById('boardTitle').textContent = 'Runway ' + state.desig + ' — plan view';
+}
+
+function drawGround(night){
+  const g = group('ground');
+  el('rect', {x:0, y:0, width:620, height:1070, fill: night ? '#05080b' : '#5f6a55'}, g);
+
+  // runway surface
+  el('rect', {
+    x:X(-HALF_W), y:Y(RWY_LEN), width:HALF_W*2*SX, height:RWY_LEN*SY,
+    fill: night ? '#0e141a' : '#54585b'
+  }, g);
+
+  // approach ground strip, slightly lighter so the lights read as being over terrain
+  el('rect', {
+    x:X(-HALF_W), y:Y(0), width:HALF_W*2*SX, height:APP_LEN*SY,
+    fill: night ? '#080c10' : '#5a6351', opacity:0.7
+  }, g);
+
+  // exit taxiway, right-hand side, leaving at 2100 m
+  const tw = el('path', {
+    d:'M '+X(HALF_W)+' '+Y(2160)+
+      ' L '+X(HALF_W+70)+' '+Y(2010)+
+      ' L '+X(HALF_W+70)+' '+Y(1890)+
+      ' L '+X(HALF_W)+' '+Y(2040)+' Z',
+    fill: night ? '#0e141a' : '#54585b'
+  }, g);
+  tw.setAttribute('opacity','1');
+}
+
+function drawPaint(night){
+  const g = group('paint');
+  const wht = night ? '#7d8790' : '#eef1f2';
+  const op  = night ? 0.5 : 0.9;
+
+  // threshold bars — eight pairs across the width
+  for (let i=-4;i<=4;i++){
+    if (i===0) continue;
+    const off = (i>0 ? (i-0.5) : (i+0.5)) * 4.2;
+    paint(g, off, 6, 1.8, 30, wht, op);
+  }
+
+  // designator
+  const t = el('text', {
+    x:CX, y:Y(62), 'text-anchor':'middle',
+    fill:wht, opacity:op,
+    'font-family':"'Barlow Semi Condensed',sans-serif",
+    'font-size':26, 'font-weight':600, 'letter-spacing':'2'
+  }, g);
+  t.textContent = state.desig;
+
+  // centreline stripes, 30 m painted / 20 m gap
+  for (let d=200; d<RWY_LEN-60; d+=50) paint(g, 0, d, 0.9, 30, wht, op*0.85);
+
+  // aiming point, 300 m from threshold
+  paint(g, -14, 300, 6, 50, wht, op);
+  paint(g,  14, 300, 6, 50, wht, op);
+
+  // touchdown zone markings at 150 m intervals
+  const tdzSets = [[150,3],[450,2],[600,2],[750,1],[900,1]];
+  tdzSets.forEach(function(s){
+    const d = s[0], n = s[1];
+    for (let k=0;k<n;k++){
+      const off = 8.5 + k*2.6;
+      paint(g, -off, d, 1.8, 22.5, wht, op);
+      paint(g,  off, d, 1.8, 22.5, wht, op);
+    }
+  });
+
+  // side stripes
+  paint(g, -HALF_W+0.9, 0, 0.9, RWY_LEN, wht, op*0.6);
+  paint(g,  HALF_W-0.9, 0, 0.9, RWY_LEN, wht, op*0.6);
+}
+
+function drawTaxiwayPaint(night){
+  const g = group('twypaint');
+  const yl = night ? '#8a7a35' : '#e8c437';
+  el('path', {
+    d:'M '+X(0)+' '+Y(2100)+' Q '+X(40)+' '+Y(2063)+' '+X(72)+' '+Y(2006),
+    fill:'none', stroke:yl, 'stroke-width':1.2, opacity: night?0.45:0.9
+  }, g);
+}
+
+/* Approach system — ICAO precision approach lighting, 900 m */
+function drawApproach(cat){
+  const g = group('approach');
+
+  // centreline barrettes every 30 m out to 900 m
+  for (let d=30; d<=APP_LEN; d+=30){
+    const bg = group('', g);
+    barrette(bg, 0, -d, 5, 1.6, C.white, 2.2);
+    if (d > 300) flashGroups.push(bg);   // sequenced flashers live outboard of 300 m
+  }
+
+  // crossbars
+  barrette(g, 0, -150, 21, 1.5, C.white, 2.2);
+  if (cat.xbar300) barrette(g, 0, -300, 21, 1.5, C.white, 2.2);
+
+  // red side rows over the inner 270 m — the CAT II / III supplementary lights
+  if (cat.sideRows){
+    for (let d=30; d<=270; d+=30){
+      barrette(g, -12, -d, 3, 1.5, C.red, 2.2);
+      barrette(g,  12, -d, 3, 1.5, C.red, 2.2);
+    }
+  }
+}
+
+function drawThreshold(){
+  const g = group('threshold');
+  // green threshold lights across the full width
+  for (let i=-7;i<=7;i++) light(g, i*3.0, 0, C.green, 2.5);
+  // wing bars, five lights each, outboard of the runway edge
+  for (let i=0;i<5;i++){
+    light(g, -(HALF_W + 3 + i*3), 0, C.green, 2.5);
+    light(g,  (HALF_W + 3 + i*3), 0, C.green, 2.5);
+  }
+}
+
+function drawEdge(){
+  const g = group('edge');
+  for (let d=0; d<=RWY_LEN; d+=60){
+    const col = (d >= RWY_LEN - 600) ? C.yellow : C.white;
+    light(g, -HALF_W, d, col, 2.4);
+    light(g,  HALF_W, d, col, 2.4);
+  }
+}
+
+function drawCentreline(){
+  const g = group('centreline');
+  let flip = false;
+  for (let d=30; d<=RWY_LEN-30; d+=30){
+    let col;
+    if (d < RWY_LEN - 900) col = C.white;
+    else if (d < RWY_LEN - 300){ col = flip ? C.red : C.white; flip = !flip; }
+    else col = C.red;
+    light(g, 0, d, col, 2.2);
+  }
+}
+
+function drawTdz(){
+  const g = group('tdz');
+  for (let d=30; d<=900; d+=30){
+    barrette(g, -7, d, 3, 1.5, C.white, 2.0);
+    barrette(g,  7, d, 3, 1.5, C.white, 2.0);
+  }
+}
+
+function drawEnd(){
+  const g = group('end');
+  for (let i=-7;i<=7;i++) light(g, i*3.0, RWY_LEN, C.red, 2.5);
+}
+
+function drawTaxiwayLights(){
+  const g = group('twy');
+  // lead-off lights, alternating green and yellow, from the runway centreline onto the taxiway
+  const lead = [[0,2100],[8,2098],[16,2093],[24,2085],[32,2075],[40,2063],[48,2050],[56,2036],[64,2021],[72,2006]];
+  lead.forEach(function(p,i){ light(g, p[0], p[1], i%2 ? C.yellow : C.green, 2.1); });
+  // taxiway edge lights, blue, along both paved edges
+  const topEdge = function(x){ return 2160 - (x-HALF_W)*150/70; };
+  const botEdge = function(x){ return 2040 - (x-HALF_W)*150/70; };
+  [36,50,64,78,90].forEach(function(x){
+    light(g, x, topEdge(x), C.blue, 2.1);
+    light(g, x, botEdge(x), C.blue, 2.1);
+  });
+}
+
+function drawPapi(){
+  const g = group('papi');
+  const pat = PAPI[state.papi].pat;          // index 0 = unit nearest the runway
+  for (let i=0;i<4;i++){
+    const xm = -(HALF_W + 15 + i*9);
+    const col = pat[i] === 'w' ? C.white : C.red;
+    // housing
+    el('rect', {
+      x:X(xm)-5, y:Y(300)-4.5, width:10, height:9, rx:1.5,
+      fill: state.mode==='night' ? '#161d24' : '#2f3630',
+      stroke:'#3a4854', 'stroke-width':0.6
+    }, g);
+    light(g, xm, 300, col, 2.6);
+  }
+}
+
+function drawReil(){
+  const g = group('reil');
+  [-(HALF_W+12), (HALF_W+12)].forEach(function(xm){
+    const c = el('circle', {cx:X(xm), cy:Y(0), r:3.2, fill:'#ffffff'}, g);
+    const halo = el('circle', {cx:X(xm), cy:Y(0), r:9, fill:'#ffffff', opacity:0.18}, g);
+    reilNodes.push(c, halo);
+  });
+}
+
+function drawCallouts(cat){
+  const g = group('labels');
+  const R = 436, L = 158;
+  callout(g, 'Runway end lights, red',        X(6),           Y(RWY_LEN),  R, Y(RWY_LEN)-12, 'start');
+  callout(g, 'Edge yellow, last 600 m',       X(HALF_W),      Y(2700),     R, Y(2700)+14,    'start');
+  callout(g, 'Red and white, 900 m to go',    X(0),           Y(2100),     R, Y(2100)-6,     'start');
+  callout(g, 'Exit lead-off, green, yellow',  X(HALF_W+30),   Y(2060),     R, Y(1930),       'start');
+  callout(g, 'Taxiway edge, blue',            X(HALF_W+66),   Y(1960),     R, Y(1840),       'start');
+  callout(g, 'Threshold and wing bars',       X(HALF_W+9),    Y(0),        R, Y(60),         'start');
+  callout(g, '300 m crossbar',                X(15),          Y(-300),     R, Y(-300),       'start');
+  callout(g, 'Centreline barrettes to 900 m', X(0),           Y(-780),     R, Y(-770),       'start');
+
+  callout(g, 'Touchdown zone barrettes',      X(-7),          Y(660),      L, Y(740),        'end');
+  callout(g, 'Aiming point, PAPI abeam',      X(-(HALF_W+15)),Y(300),      L, Y(390),        'end');
+  if (cat.sideRows)
+    callout(g, 'Supplementary side rows, red',X(-12),         Y(-60),      L, Y(-30),        'end');
+  callout(g, '150 m crossbar',                X(-15),         Y(-150),     L, Y(-175),       'end');
+}
+
+function drawHaze(){
+  if (!state.rvr) return;
+  const g = group('haze');
+  const amt = state.rvr/100;
+  const defs = el('defs', {}, g);
+  const lg = el('radialGradient', {id:'hz', cx:'50%', cy:'72%', r:'62%'}, defs);
+  el('stop', {offset:'0%', 'stop-color': state.mode==='night' ? '#2a3742' : '#c9d0cc', 'stop-opacity':0}, lg);
+  el('stop', {offset:'100%','stop-color': state.mode==='night' ? '#2a3742' : '#c9d0cc', 'stop-opacity':1}, lg);
+  el('rect', {x:0,y:0,width:620,height:1070, fill:'url(#hz)', opacity:(0.15 + amt*0.72)}, g);
+}
+
+/* ───────── animation: sequenced flashers and REIL ───────── */
+let seqIdx = 0;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+setInterval(function(){
+  if (reduceMotion) return;
+  // sequenced flashers run from the far end in towards the threshold
+  if (state.show.flashers && state.show.approach && flashGroups.length){
+    flashGroups.forEach(function(gg){ gg.style.opacity = '1'; });
+    const order = flashGroups.slice().reverse();      // outermost first
+    const i = seqIdx % (order.length + 5);
+    if (i < order.length){
+      order.forEach(function(gg, k){ gg.style.opacity = (k === i) ? '1' : '0.6'; });
+    }
+  }
+  // REIL strobes in unison, twice a second
+  if (state.show.reil && reilNodes.length){
+    const on = (seqIdx % 12) < 2;
+    reilNodes.forEach(function(n){ n.style.opacity = on ? '' : '0.08'; });
+  }
+  seqIdx++;
+}, 60);
+
+/* ───────── readout ───────── */
+function updateReadout(){
+  const cat = CAT[state.cat], p = PAPI[state.papi];
+  document.getElementById('roSys').textContent = cat.sys;
+  document.getElementById('roDh').textContent = cat.dh;
+  document.getElementById('roRvr').textContent = cat.rvr;
+  document.getElementById('roPapi').textContent = p.name + ', ' + p.angle;
+  document.getElementById('roAdvice').innerHTML = '<b>' + p.name + '.</b> ' + p.advice;
+}
+
+function rvrLabel(v){
+  if (v === 0) return 'unrestricted';
+  if (v < 30) return 'about 1500 m';
+  if (v < 55) return 'about 800 m';
+  if (v < 75) return 'about 550 m — CAT I limit';
+  if (v < 90) return 'about 300 m — CAT II limit';
+  return 'about 175 m — CAT III';
+}
+
+/* ───────── controls ───────── */
+function wireSeg(id, apply){
+  const root = document.getElementById(id);
+  root.addEventListener('click', function(e){
+    const b = e.target.closest('button');
+    if (!b) return;
+    root.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+    b.setAttribute('aria-pressed','true');
+    apply(b.dataset.v);
+    render(); updateReadout();
+  });
+}
+
+wireSeg('segDay', function(v){ state.mode = v; });
+wireSeg('segCat', function(v){ state.cat = v; });
+wireSeg('papiList', function(v){ state.papi = v; });
+
+document.getElementById('checks').addEventListener('change', function(e){
+  const k = e.target.dataset.k;
+  if (!k) return;
+  state.show[k] = e.target.checked;
+  render();
+});
+
+document.getElementById('desig').addEventListener('input', function(e){
+  state.desig = e.target.value.toUpperCase() || '09L';
+  render();
+});
+
+const rvr = document.getElementById('rvr');
+rvr.addEventListener('input', function(e){
+  state.rvr = Number(e.target.value);
+  document.getElementById('rvrTag').textContent = rvrLabel(state.rvr);
+  render();
+});
+
+render();
+updateReadout();
+
+})();
+</script>
+</body>
+</html>

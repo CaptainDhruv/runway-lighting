@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approach &amp; Runway Lighting Simulator — CAT II / III</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#07090c;
+    --bg-1:#0f151b;
+    --bg-2:#161f27;
+    --line:#263039;
+    --line-soft:#1b232b;
+    --amber:#ffb020;
+    --green:#39d98a;
+    --red:#ff4d4d;
+    --text-0:#e9eef2;
+    --text-1:#8fa2ae;
+    --text-2:#5c6b76;
+    --font-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+    --radius:3px;
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg-0);
+    color:var(--text-0);
+    font-family:var(--font-display);
+    line-height:1.5;
+    min-height:100vh;
+  }
+
+  .app{ max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    flex-wrap:wrap; gap:18px;
+    padding-bottom:20px; margin-bottom:24px;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar h1{ font-size:clamp(21px,3vw,29px); font-weight:600; margin:0 0 6px; letter-spacing:-0.01em; }
+  .topbar p{ margin:0; color:var(--text-1); font-size:14px; max-width:54ch; }
+
+  .readouts{ display:flex; gap:10px; }
+  .chip{
+    font-family:var(--font-mono); font-size:13px; letter-spacing:0.03em;
+    color:var(--amber); background:var(--bg-2); border:1px solid var(--line);
+    padding:8px 14px; border-radius:var(--radius); text-align:center; min-width:82px;
+  }
+  .chip small{ display:block; color:var(--text-2); font-size:9.5px; letter-spacing:0.08em; margin-bottom:4px; font-family:var(--font-display); font-weight:600; }
+
+  /* ---------- Controls ---------- */
+  .controls{ display:flex; flex-wrap:wrap; gap:14px; margin-bottom:24px; }
+  .control-group{ background:var(--bg-1); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; }
+  .control-group h2{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-2); margin:0 0 10px; font-weight:600; }
+
+  .designator-field{ display:flex; align-items:center; gap:9px; }
+  .designator-field input{
+    width:70px; background:var(--bg-0); border:1px solid var(--line); color:var(--amber);
+    font-family:var(--font-mono); font-size:19px; text-align:center; padding:7px 4px;
+    border-radius:var(--radius); letter-spacing:0.05em;
+  }
+  .designator-field input:focus-visible{ outline:2px solid var(--amber); outline-offset:1px; }
+  .designator-field span{ color:var(--text-2); font-size:11.5px; max-width:15ch; }
+
+  .rocker{ display:flex; background:var(--bg-0); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; height:100%; }
+  .rocker button{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.05em; padding:9px 18px;
+    background:transparent; border:none; color:var(--text-1); cursor:pointer;
+  }
+  .rocker button.active{ background:var(--amber); color:#1a1200; font-weight:700; }
+  .rocker button:focus-visible{ outline:2px solid var(--amber); outline-offset:-2px; }
+
+  .papi-select{ display:flex; gap:6px; flex-wrap:wrap; }
+  .papi-btn{
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    background:var(--bg-0); border:1px solid var(--line); border-radius:var(--radius);
+    padding:9px 11px; cursor:pointer; color:var(--text-1);
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.03em;
+  }
+  .papi-btn.active{ border-color:var(--amber); color:var(--amber); }
+  .papi-btn:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+  .papi-preview{ display:flex; gap:2px; }
+  .papi-preview i{ width:8px; height:8px; border-radius:50%; display:block; background:#f4f8ff; }
+  .papi-preview i.r{ background:var(--red); }
+
+  /* ---------- Main layout ---------- */
+  .main{ display:flex; gap:22px; justify-content:center; align-items:flex-start; }
+  .stage-wrap{
+    flex:0 1 620px; background:#0c1116; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; min-width:0;
+  }
+  .stage-wrap.night{ background:#04060a; }
+  svg#diagram{ width:100%; height:auto; display:block; }
+
+  .sidebar{ flex:0 0 300px; display:flex; flex-direction:column; gap:14px; }
+
+  @media (max-width:960px){
+    .main{ flex-direction:column; align-items:stretch; }
+    .stage-wrap{ flex:1 1 auto; max-width:560px; width:100%; margin:0 auto; }
+    .sidebar{ flex:1 1 auto; width:100%; max-width:560px; margin:0 auto; }
+  }
+
+  .panel{ background:var(--bg-1); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .panel h2{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-2); margin:0 0 12px; font-weight:600; }
+
+  .papi-readout{ display:flex; align-items:center; gap:16px; }
+  .papi-readout .dots{ display:flex; gap:5px; flex-shrink:0; }
+  .papi-readout .dots i{ width:22px; height:22px; border-radius:50%; background:#f4f8ff; box-shadow:0 0 10px 2px rgba(244,248,255,.5); display:block; }
+  .papi-readout .dots i.r{ background:var(--red); box-shadow:0 0 10px 2px rgba(255,77,77,.6); }
+  .papi-readout .info b{ display:block; font-size:14.5px; margin-bottom:3px; letter-spacing:0.01em; }
+  .papi-readout .info span{ color:var(--text-1); font-size:12px; }
+
+  .legend-item{ display:flex; align-items:flex-start; gap:10px; margin-bottom:11px; font-size:12.5px; color:var(--text-1); }
+  .legend-item:last-child{ margin-bottom:0; }
+  .legend-dot{ width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+  .legend-item b{ color:var(--text-0); font-weight:600; display:block; font-size:12.5px; font-family:var(--font-display); }
+
+  .notes p{ margin:0 0 10px; color:var(--text-1); font-size:12.5px; }
+  .notes p:last-child{ margin-bottom:0; }
+
+  footer{ margin-top:34px; padding-top:16px; border-top:1px solid var(--line-soft); color:var(--text-2); font-size:11.5px; }
+
+  /* ---------- SVG scene ---------- */
+  .grass{ fill:#3f6b46; }
+  .night .grass{ fill:#04060a; }
+  .rwy-surface{ fill:#54575c; stroke:#6b6f74; stroke-width:1; }
+  .night .rwy-surface{ fill:#0a0c0f; stroke:#1c1f24; }
+
+  /* Day markings: visible in day, hidden at night */
+  .markings-layer{ opacity:1; transition:opacity .25s ease; }
+  .night .markings-layer{ opacity:0; }
+  .mark{ fill:#f4f4f0; stroke:#2b2d30; stroke-width:0.6; }
+  .mark-line{ stroke:#f4f4f0; stroke-width:3.2; stroke-dasharray:24 15; }
+  .rwy-number{ font-family:var(--font-mono); font-weight:700; font-size:44px; fill:#ffffff; text-anchor:middle; stroke:#2b2d30; stroke-width:1; }
+
+  /* Physical light fixtures (everything except PAPI): unlit/hidden in day, glowing at night */
+  .lights-layer{ opacity:0; transition:opacity .25s ease; }
+  .night .lights-layer{ opacity:1; }
+  .light.white{ fill:#f4f8ff; }
+  .light.red{ fill:#ff4136; }
+  .light.green{ fill:#2ecc71; }
+  .light.yellow{ fill:#ffcc33; }
+  .night .light.white{ filter:drop-shadow(0 0 1.6px #fff) drop-shadow(0 0 4.2px #fff); }
+  .night .light.red{ filter:drop-shadow(0 0 1.6px #ff4136) drop-shadow(0 0 4.2px #ff4136); }
+  .night .light.green{ filter:drop-shadow(0 0 1.6px #2ecc71) drop-shadow(0 0 4.2px #2ecc71); }
+  .night .light.yellow{ filter:drop-shadow(0 0 1.6px #ffcc33) drop-shadow(0 0 4.2px #ffcc33); }
+
+  /* PAPI: always on, day and night */
+  .papi-dot.white{ fill:#f4f8ff; }
+  .papi-dot.red{ fill:#ff4136; }
+  .night .papi-dot.white{ filter:drop-shadow(0 0 2.4px #fff) drop-shadow(0 0 6px #fff); }
+  .night .papi-dot.red{ filter:drop-shadow(0 0 2.4px #ff4136) drop-shadow(0 0 6px #ff4136); }
+
+  .flasher{ fill:#ffffff; opacity:0; }
+  .night .flasher{ animation:rabbit 1.3s linear infinite; }
+  @keyframes rabbit{ 0%{opacity:0;} 4%{opacity:1;} 11%{opacity:0;} 100%{opacity:0;} }
+  @media (prefers-reduced-motion:reduce){ .night .flasher{ animation:none; opacity:.55; } }
+
+  .label{ font-family:var(--font-mono); font-size:11px; fill:#7c8d99; }
+  .leader{ stroke:#2a3542; stroke-width:1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div>
+      <h1>Approach &amp; Runway Lighting Simulator</h1>
+      <p>A precision approach category II / III lighting system, from the outer approach lights through the threshold to the runway end, with an adjustable PAPI.</p>
+    </div>
+    <div class="readouts">
+      <div class="chip"><small>Runway</small><span id="chip-runway-value">27</span></div>
+      <div class="chip"><small>Category</small><span>II / III</span></div>
+      <div class="chip"><small>PAPI</small><span id="chip-papi-value">ON PATH</span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <h2>Runway designator</h2>
+      <div class="designator-field">
+        <input id="designator-input" type="text" value="27" maxlength="3" aria-label="Runway designator">
+        <span>e.g. 27, 09L, 36C</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <h2>Lighting conditions</h2>
+      <div class="rocker">
+        <button type="button" data-mode="day">DAY</button>
+        <button type="button" data-mode="night" class="active">NIGHT</button>
+      </div>
+    </div>
+
+    <div class="control-group" style="flex:1 1 440px;">
+      <h2>PAPI glide path</h2>
+      <div class="papi-select">
+        <button type="button" class="papi-btn" data-state="toohigh">
+          <span class="papi-preview"><i></i><i></i><i></i><i></i></span>
+          Too high
+        </button>
+        <button type="button" class="papi-btn" data-state="high">
+          <span class="papi-preview"><i class="r"></i><i></i><i></i><i></i></span>
+          Slightly high
+        </button>
+        <button type="button" class="papi-btn active" data-state="onpath">
+          <span class="papi-preview"><i class="r"></i><i class="r"></i><i></i><i></i></span>
+          On path
+        </button>
+        <button type="button" class="papi-btn" data-state="low">
+          <span class="papi-preview"><i class="r"></i><i class="r"></i><i class="r"></i><i></i></span>
+          Slightly low
+        </button>
+        <button type="button" class="papi-btn" data-state="toolow">
+          <span class="papi-preview"><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>
+          Too low
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="stage-wrap night" id="stage-wrap">
+      <svg id="diagram" class="night" viewBox="0 0 800 1650" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram of approach and runway lighting">
+        <g id="bg-layer"></g>
+        <g id="markings-layer"></g>
+        <g id="lights-layer"></g>
+        <g id="papi-layer"></g>
+        <g id="labels-layer"></g>
+      </svg>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel">
+        <h2>PAPI reading</h2>
+        <div class="papi-readout">
+          <div class="dots" id="readout-dots"></div>
+          <div class="info">
+            <b id="readout-title">ON GLIDE PATH</b>
+            <span id="readout-desc">Two red, two white — on the correct approach angle.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Light key</h2>
+        <div class="legend-item"><span class="legend-dot" style="background:#f4f8ff"></span><div><b>White</b>Approach centreline, runway edge and centreline lights.</div></div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ff4136"></span><div><b>Red</b>Final 300 m of the approach and runway centreline, runway end lights, and a PAPI below the glide path.</div></div>
+        <div class="legend-item"><span class="legend-dot" style="background:#2ecc71"></span><div><b>Green</b>Runway threshold and wing bars, marking the start of the landing surface.</div></div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffcc33"></span><div><b>Yellow</b>Caution zone — the final 600 m of runway edge lighting.</div></div>
+      </div>
+
+      <div class="panel notes">
+        <h2>About this system</h2>
+        <p>Precision approach category II / III lighting runs 900 m out from the threshold on the extended centreline, colour-coded so a pilot can judge remaining distance in low visibility. Runway lighting carries the same coding through touchdown and roll-out.</p>
+        <p>Switching to day hides the light fixtures and shows the painted surface markings instead — the PAPI stays on in both, since it operates day and night.</p>
+        <p>This is a simplified educational model, not a certified navigation aid.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>Educational simulation of ICAO Annex 14 style precision-approach lighting. Spacing, widths and counts are illustrative and compressed for clarity, not an exact engineering drawing.</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+
+  // ---- Coordinate system ----
+  var CX = 380;                 // runway centreline, x
+  var RWY_HALF = 65;            // half runway width (wider than a plain 2-lane strip, for legibility)
+  var LEFT_EDGE = CX - RWY_HALF;
+  var RIGHT_EDGE = CX + RWY_HALF;
+  var SCALE = 0.5;              // svg units per metre, along the runway/approach length
+  var THRESH_Y = 550;
+  var APPROACH_LEN = 900;       // metres of approach lighting shown
+  var RWY_LEN = 2100;           // metres of runway shown
+  var TOP_Y = THRESH_Y - APPROACH_LEN * SCALE;
+  var FAR_Y = THRESH_Y + RWY_LEN * SCALE;
+
+  function yFor(d){ return THRESH_Y - d * SCALE; }      // d metres before threshold
+  function yPast(d){ return THRESH_Y + d * SCALE; }     // d metres past threshold
+
+  function el(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs){ e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+  function dot(cx, cy, cls, r){
+    return el("circle", { cx: cx.toFixed(2), cy: cy.toFixed(2), r: r || 2.6, "class": "light " + cls });
+  }
+  function rect(x, y, w, h){
+    return el("rect", { x: x.toFixed(2), y: y.toFixed(2), width: w, height: h, "class": "mark" });
+  }
+
+  var bgLayer = document.getElementById("bg-layer");
+  var markingsLayer = document.getElementById("markings-layer");
+  var lightsLayer = document.getElementById("lights-layer");
+  var papiLayer = document.getElementById("papi-layer");
+  var labelsLayer = document.getElementById("labels-layer");
+
+  // ---- Background ----
+  bgLayer.appendChild(el("rect", { x:0, y:0, width:800, height:1650, "class":"grass" }));
+  bgLayer.appendChild(el("rect", {
+    x: LEFT_EDGE, y: THRESH_Y, width: RIGHT_EDGE - LEFT_EDGE, height: FAR_Y - THRESH_Y, "class":"rwy-surface"
+  }));
+
+  // ==========================================================
+  // LIGHTS (night view — hidden in day, glowing at night)
+  // ==========================================================
+
+  // ---- Approach centreline lights + sequenced flashers ----
+  for (var d = 30; d <= APPROACH_LEN; d += 30){
+    var y = yFor(d);
+    var cls, offsets;
+    if (d > 300){ cls = "white"; offsets = [-8, 0, 8]; }
+    else if (d > 100){ cls = (Math.round(d / 30) % 2 === 0) ? "red" : "white"; offsets = [-14, -7, 0, 7, 14]; }
+    else { cls = "red"; offsets = [-14, -7, 0, 7, 14]; }
+
+    (function(y, cls, offsets){
+      offsets.forEach(function(off){ lightsLayer.appendChild(dot(CX + off, y, cls, 2.4)); });
+    })(y, cls, offsets);
+
+    if (d >= 300){
+      var f = el("circle", { cx: CX, cy: (y - 3).toFixed(2), r: 3, "class": "flasher" });
+      f.style.animationDelay = (((APPROACH_LEN - d) / APPROACH_LEN) * 1.1).toFixed(2) + "s";
+      lightsLayer.appendChild(f);
+    }
+  }
+
+  // ---- Red side barrettes (supplementary approach lighting), flaring to meet the runway ----
+  for (var ds = 90; ds <= 270; ds += 30){
+    var ys = yFor(ds);
+    var off = 36 + ((270 - ds) / 180) * 22;
+    [-1, 1].forEach(function(side){
+      var bx = CX + side * off;
+      [-4, 0, 4].forEach(function(o){ lightsLayer.appendChild(dot(bx + o, ys, "red", 2.3)); });
+    });
+  }
+
+  // ---- Threshold lights + wing bars (green) — one continuous, evenly spaced row ----
+  (function(){
+    var mainCount = 10;
+    var spacing = (RIGHT_EDGE - LEFT_EDGE) / (mainCount - 1);
+    for (var i = 0; i < mainCount; i++){
+      lightsLayer.appendChild(dot(LEFT_EDGE + i * spacing, THRESH_Y, "green", 3));
+    }
+    for (var w = 1; w <= 5; w++){
+      lightsLayer.appendChild(dot(LEFT_EDGE - w * spacing, THRESH_Y, "green", 3));
+      lightsLayer.appendChild(dot(RIGHT_EDGE + w * spacing, THRESH_Y, "green", 3));
+    }
+  })();
+
+  // ---- Runway edge lights (white, yellow in final 600 m) ----
+  for (var de = 30; de <= RWY_LEN; de += 30){
+    var ye = yPast(de);
+    var clsE = (RWY_LEN - de <= 600) ? "yellow" : "white";
+    lightsLayer.appendChild(dot(LEFT_EDGE, ye, clsE, 2.3));
+    lightsLayer.appendChild(dot(RIGHT_EDGE, ye, clsE, 2.3));
+  }
+
+  // ---- Runway centreline lights (colour-coded toward the far end) ----
+  for (var dc = 30; dc <= RWY_LEN; dc += 30){
+    var yc = yPast(dc);
+    var remain = RWY_LEN - dc;
+    var clsC = "white";
+    if (remain <= 300) clsC = "red";
+    else if (remain <= 900) clsC = (Math.round(remain / 30) % 2 === 0) ? "red" : "white";
+    lightsLayer.appendChild(dot(CX, yc, clsC, 2.3));
+  }
+
+  // ---- Touchdown zone lighting (paired white barrettes, inside the edge lights) ----
+  for (var dt = 60; dt <= 900 && dt < RWY_LEN; dt += 60){
+    var yt = yPast(dt);
+    var n = 3;
+    if (dt > 700) n = 1; else if (dt > 450) n = 2;
+    var spans = n === 3 ? [-4, 0, 4] : (n === 2 ? [-2, 2] : [0]);
+    [-1, 1].forEach(function(side){
+      var bx = CX + side * 34;
+      spans.forEach(function(o){ lightsLayer.appendChild(dot(bx + o, yt, "white", 1.9)); });
+    });
+  }
+
+  // ---- Runway end lights (red) ----
+  (function(){
+    var count = 10;
+    var spacing = (RIGHT_EDGE - LEFT_EDGE) / (count - 1);
+    for (var i = 0; i < count; i++){
+      lightsLayer.appendChild(dot(LEFT_EDGE + i * spacing, FAR_Y, "red", 3));
+    }
+  })();
+
+  // ==========================================================
+  // PAPI — always visible, day and night
+  // ==========================================================
+  var papiX = LEFT_EDGE - 60;
+  var papiY0 = yPast(260);
+  var papiDots = [];
+  for (var p = 0; p < 4; p++){
+    var pc = el("circle", { cx: papiX, cy: (papiY0 + p * 12).toFixed(2), r: 5.5, "class": "light white papi-dot" });
+    papiLayer.appendChild(pc);
+    papiDots.push(pc);
+  }
+
+  // ==========================================================
+  // DAY MARKINGS (visible in day, hidden at night) — spaced with clear gaps
+  // ==========================================================
+
+  // Threshold stripes ("piano keys")
+  (function(){
+    var count = 8;
+    var innerW = (RIGHT_EDGE - LEFT_EDGE) - 20;
+    var stripeW = 5;
+    var gap = (innerW - count * stripeW) / (count - 1);
+    for (var i = 0; i < count; i++){
+      var x = LEFT_EDGE + 10 + i * (stripeW + gap);
+      markingsLayer.appendChild(rect(x, THRESH_Y + 6, stripeW, 24));
+    }
+  })();
+
+  // Runway designation number — reserves its own clear vertical band
+  var rwyNumber = el("text", { x: CX, y: THRESH_Y + 74, "class": "rwy-number", id: "rwy-number-text" });
+  rwyNumber.textContent = "27";
+  markingsLayer.appendChild(rwyNumber);
+
+  // Centreline dashed stripe — starts below the number and the first TDZ bar group
+  markingsLayer.appendChild(el("line", {
+    x1: CX, y1: yPast(240), x2: CX, y2: FAR_Y - 40, "class": "mark-line"
+  }));
+
+  // Touchdown zone marking — bar group 1 (3 stripes), clear of the number above it
+  [22, 33, 44].forEach(function(off){
+    var yG = yPast(230);
+    [-1, 1].forEach(function(side){
+      markingsLayer.appendChild(rect(CX + side * off - 2.5, yG - 14, 5, 28));
+    });
+  });
+
+  // Aiming point marking — the two large rectangles, below bar group 1
+  var apY = yPast(340);
+  [-1, 1].forEach(function(side){
+    markingsLayer.appendChild(rect(CX + side * 34 - 8, apY - 24, 16, 48));
+  });
+
+  // Touchdown zone marking — bar group 2 (2 stripes)
+  [26, 38].forEach(function(off){
+    var yG = yPast(470);
+    [-1, 1].forEach(function(side){
+      markingsLayer.appendChild(rect(CX + side * off - 2.5, yG - 14, 5, 28));
+    });
+  });
+
+  // Touchdown zone marking — bar group 3 (1 stripe)
+  (function(){
+    var yG = yPast(650);
+    [-1, 1].forEach(function(side){
+      markingsLayer.appendChild(rect(CX + side * 26 - 2.5, yG - 14, 5, 28));
+    });
+  })();
+
+  // ==========================================================
+  // Labels
+  // ==========================================================
+  function label(x, y, lines, anchor){
+    lines.forEach(function(t, i){
+      var t2 = el("text", { x: x, y: y + i * 13, "class": "label" });
+      if (anchor) t2.setAttribute("text-anchor", anchor);
+      t2.textContent = t;
+      labelsLayer.appendChild(t2);
+    });
+  }
+  function leader(x1, y1, x2, y2){
+    labelsLayer.appendChild(el("line", { x1: x1, y1: y1, x2: x2, y2: y2, "class": "leader" }));
+  }
+
+  label(590, yFor(760), ["APPROACH LIGHTING", "900 M, COLOUR-CODED CENTRELINE"]);
+  leader(585, yFor(760) - 4, CX + 40, yFor(760) - 4);
+
+  label(590, yFor(185), ["SUPPLEMENTARY APPROACH", "RED SIDE BARRETTES"]);
+  leader(585, yFor(185) - 4, CX + 68, yFor(185) - 4);
+
+  label(590, THRESH_Y - 6, ["THRESHOLD & WING BARS"]);
+  leader(585, THRESH_Y, RIGHT_EDGE + 30, THRESH_Y);
+
+  label(590, yPast(155), ["TOUCHDOWN ZONE LIGHTING"]);
+  leader(585, yPast(155) - 4, CX + 50, yPast(155) - 4);
+
+  label(110, yPast(280), ["PAPI"], "end");
+  leader(115, yPast(280), papiX, yPast(280));
+
+  label(590, yPast(RWY_LEN - 420), ["RUNWAY EDGE, CAUTION ZONE", "FINAL 600 M — YELLOW"]);
+  leader(585, yPast(RWY_LEN - 420) - 4, RIGHT_EDGE, yPast(RWY_LEN - 420) - 4);
+
+  label(590, yPast(RWY_LEN * 0.55), ["RUNWAY CENTRELINE LIGHTS"]);
+  leader(585, yPast(RWY_LEN * 0.55) - 4, CX + 6, yPast(RWY_LEN * 0.55) - 4);
+
+  label(590, FAR_Y - 4, ["RUNWAY END LIGHTS"]);
+  leader(585, FAR_Y, RIGHT_EDGE + 20, FAR_Y);
+
+  // ==========================================================
+  // Runway designator
+  // ==========================================================
+  var designatorInput = document.getElementById("designator-input");
+  var chipRunway = document.getElementById("chip-runway-value");
+
+  function updateDesignator(raw){
+    var v = (raw || "").toUpperCase().replace(/[^0-9LCR]/g, "").slice(0, 3);
+    rwyNumber.textContent = v || "—";
+    chipRunway.textContent = v || "—";
+    return v;
+  }
+  designatorInput.addEventListener("input", function(e){
+    e.target.value = updateDesignator(e.target.value);
+  });
+
+  // ==========================================================
+  // Day / night mode
+  // ==========================================================
+  var diagramEl = document.getElementById("diagram");
+  var stageWrap = document.getElementById("stage-wrap");
+  var rockerButtons = document.querySelectorAll(".rocker button");
+
+  function setMode(mode){
+    var night = mode === "night";
+    diagramEl.classList.toggle("night", night);
+    stageWrap.classList.toggle("night", night);
+    rockerButtons.forEach(function(b){ b.classList.toggle("active", b.dataset.mode === mode); });
+  }
+  rockerButtons.forEach(function(b){
+    b.addEventListener("click", function(){ setMode(b.dataset.mode); });
+  });
+
+  // ==========================================================
+  // PAPI states
+  // ==========================================================
+  var PAPI_STATES = {
+    toohigh: [0, 0, 0, 0],
+    high:    [1, 0, 0, 0],
+    onpath:  [1, 1, 0, 0],
+    low:     [1, 1, 1, 0],
+    toolow:  [1, 1, 1, 1]
+  };
+  var PAPI_INFO = {
+    toohigh: ["TOO HIGH", "All four white — descend to intercept the glide path."],
+    high:    ["SLIGHTLY HIGH", "One red, three white — just above the 3° path."],
+    onpath:  ["ON GLIDE PATH", "Two red, two white — on the correct approach angle."],
+    low:     ["SLIGHTLY LOW", "Three red, one white — just below the 3° path."],
+    toolow:  ["TOO LOW", "All four red — climb to regain the glide path."]
+  };
+  var PAPI_SHORT = { toohigh:"TOO HIGH", high:"HIGH", onpath:"ON PATH", low:"LOW", toolow:"TOO LOW" };
+
+  var readoutDots = document.getElementById("readout-dots");
+  var readoutTitle = document.getElementById("readout-title");
+  var readoutDesc = document.getElementById("readout-desc");
+  var chipPapi = document.getElementById("chip-papi-value");
+  var papiButtons = document.querySelectorAll(".papi-btn");
+
+  function setPapi(state){
+    var pattern = PAPI_STATES[state];
+    papiDots.forEach(function(dEl, idx){
+      dEl.classList.remove("white", "red");
+      dEl.classList.add(pattern[idx] ? "red" : "white");
+    });
+
+    readoutDots.innerHTML = "";
+    pattern.forEach(function(v){
+      var i = document.createElement("i");
+      if (v) i.className = "r";
+      readoutDots.appendChild(i);
+    });
+
+    readoutTitle.textContent = PAPI_INFO[state][0];
+    readoutDesc.textContent = PAPI_INFO[state][1];
+    chipPapi.textContent = PAPI_SHORT[state];
+
+    papiButtons.forEach(function(b){ b.classList.toggle("active", b.dataset.state === state); });
+  }
+  papiButtons.forEach(function(b){
+    b.addEventListener("click", function(){ setPapi(b.dataset.state); });
+  });
+
+  // ---- Init ----
+  updateDesignator(designatorInput.value);
+  setMode("night");
+  setPapi("onpath");
+})();
+</script>
+</body>
+</html>
