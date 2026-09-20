@@ -9,125 +9,227 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#080d12; --panel:#111a22; --panel-2:#16212b;
-  --line:#243342; --line-soft:#1b2732;
-  --text:#dde6ee; --text-dim:#8296a6; --text-faint:#586a79;
-  --accent:#f0a93c; --warn:#ff6b4a;
+  --paper:#f3f1ec;
+  --card:#ffffff;
+  --card-2:#faf9f6;
+  --ink:#16242f;
+  --ink-2:#4d6273;
+  --ink-3:#8296a3;
+  --line:#e2ded6;
+  --line-soft:#eeebe5;
+  --accent:#b5650b;
+  --accent-soft:#fdf2e2;
+  --navy:#132430;
+  --warn:#b23a22;
+  --good:#1d7a4b;
+
   --ui:'Barlow Semi Condensed',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(19,36,48,.05),0 8px 24px -12px rgba(19,36,48,.18);
+  --radius:10px;
 }
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{background:var(--ink);color:var(--text);font-family:var(--ui);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--ui);
+  font-size:17px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+}
 
-.shell{display:grid;grid-template-columns:332px minmax(0,1fr);min-height:100vh}
+/* ── header ───────────────────────────────────────────── */
+.topbar{background:var(--navy);color:#eef3f6;padding:18px 28px}
+.topbar-in{max-width:1560px;margin:0 auto}
+.topbar h1{margin:0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.1}
+.topbar p{margin:3px 0 0;font-size:15px;color:#9db2c0}
 
-.rail{background:var(--panel);border-right:1px solid var(--line);padding:22px 20px 48px;overflow-y:auto;max-height:100vh;position:sticky;top:0}
-.masthead h1{font-size:25px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;line-height:1.15}
-.masthead p{margin:0 0 24px;color:var(--text-dim);font-size:14px}
+/* ── layout ───────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:330px minmax(0,1fr);gap:24px;
+       max-width:1560px;margin:0 auto;padding:24px 28px 64px;align-items:start}
 
-.block{margin-bottom:20px}
-.block > h2{font-size:13px;font-weight:600;color:var(--text-faint);margin:0 0 8px;letter-spacing:.02em}
-.block > h2 em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--text)}
+.rail{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
+      display:flex;flex-direction:column;gap:10px;padding-right:4px}
+.rail::-webkit-scrollbar{width:9px}
+.rail::-webkit-scrollbar-thumb{background:#d6d1c8;border-radius:5px}
 
-.seg{display:flex;gap:4px}
-.seg button{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:14px;padding:7px 4px;border-radius:2px;cursor:pointer;transition:background .12s,color .12s}
-.seg button:hover{color:var(--text)}
-.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#151007;font-weight:600}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ── collapsible sections ─────────────────────────────── */
+details.block{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+              box-shadow:var(--shadow);padding:0 15px 2px}
+details.block > summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
+  font-size:14px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--ink-2);padding:13px 0 11px;user-select:none;
+}
+details.block > summary::-webkit-details-marker{display:none}
+details.block > summary::after{
+  content:'';margin-left:auto;width:7px;height:7px;flex:0 0 auto;
+  border-right:1.6px solid var(--ink-3);border-bottom:1.6px solid var(--ink-3);
+  transform:rotate(45deg) translate(-2px,-2px);transition:transform .18s;
+}
+details.block[open] > summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+details.block > summary:hover{color:var(--accent)}
+details.block > summary em{font-style:normal;font-family:var(--mono);font-size:12px;
+  text-transform:none;letter-spacing:0;color:var(--accent);font-weight:500}
+details.block > *:last-child{padding-bottom:13px}
 
-select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-family:var(--ui);font-size:15px;padding:7px 8px;border-radius:2px;cursor:pointer}
+/* ── segmented control ────────────────────────────────── */
+.seg{display:flex;gap:5px;flex-wrap:wrap}
+.seg button{
+  flex:1 1 auto;min-width:62px;min-height:38px;
+  background:var(--card-2);border:1px solid var(--line);color:var(--ink-2);
+  font-family:var(--ui);font-size:15px;padding:7px 6px;border-radius:7px;cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.seg button:hover{border-color:var(--accent);color:var(--accent)}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
 
-.papi-list{display:flex;flex-direction:column;gap:4px}
-.papi-list button{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:15px;text-align:left;padding:6px 10px;border-radius:2px;cursor:pointer;width:100%}
-.papi-list button:hover{color:var(--text)}
-.papi-list button[aria-pressed="true"]{color:var(--text);background:#1c2a36;border-left-color:var(--accent)}
-.chip{display:inline-flex;gap:3px;flex:0 0 auto}
+select{width:100%;min-height:40px;background:var(--card-2);border:1px solid var(--line);
+  color:var(--ink);font-family:var(--ui);font-size:16px;padding:8px 10px;border-radius:7px;cursor:pointer}
+
+/* ── slope indicator list ─────────────────────────────── */
+.papi-list{display:flex;flex-direction:column;gap:5px}
+.papi-list button{
+  display:flex;align-items:center;gap:11px;min-height:40px;
+  background:var(--card-2);border:1px solid var(--line);
+  color:var(--ink-2);font-family:var(--ui);font-size:16px;text-align:left;
+  padding:7px 11px;border-radius:7px;cursor:pointer;width:100%;
+}
+.papi-list button:hover{border-color:var(--accent)}
+.papi-list button[aria-pressed="true"]{color:var(--ink);background:var(--accent-soft);
+  border-color:var(--accent);font-weight:500}
+.chip{display:inline-flex;gap:3px;flex:0 0 auto;padding:3px 4px;background:#101820;border-radius:4px}
 .chip i{width:9px;height:9px;border-radius:50%;display:block}
 .chip i.w{background:#fff3d8}.chip i.r{background:#ff3b30}
-.papi-angle{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--text-faint)}
+.papi-angle{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 
-.checks{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
+/* ── checkboxes ───────────────────────────────────────── */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
 .checks.one{grid-template-columns:1fr}
-.checks label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--text-dim);cursor:pointer}
-.checks input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex:0 0 auto}
-.checks label:hover{color:var(--text)}
+.checks label{display:flex;align-items:center;gap:8px;min-height:34px;
+  font-size:16px;color:var(--ink-2);cursor:pointer}
+.checks input{accent-color:var(--accent);width:17px;height:17px;cursor:pointer;flex:0 0 auto}
+.checks label:hover{color:var(--ink)}
 .checks.fail input{accent-color:var(--warn)}
 
-.field{display:flex;align-items:center;gap:10px}
-.field input[type=text]{width:86px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-family:var(--mono);font-size:16px;letter-spacing:.06em;padding:6px 9px;border-radius:2px;text-transform:uppercase}
-.field span{font-size:14px;color:var(--text-dim)}
-input[type=range]{width:100%;accent-color:var(--accent)}
-
-.readout{border:1px solid var(--line);border-radius:2px;background:var(--panel-2);padding:12px 13px}
-.rline{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:3px 0}
-.rline span:first-child{color:var(--text-faint)}
-.rline span:last-child{font-family:var(--mono);font-size:13px;text-align:right}
-.advice{margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--text-dim)}
-.advice b{color:var(--text);font-weight:600}
-.alert{margin-top:9px;padding:8px 10px;border-radius:2px;background:rgba(255,107,74,.12);border-left:3px solid var(--warn);font-size:14px;color:#ffc4b3}
-.alert b{color:#ffd9ce}
-.ok{margin-top:9px;padding:8px 10px;border-radius:2px;background:rgba(22,224,106,.09);border-left:3px solid #16e06a;font-size:14px;color:#a9e9c4}
-
-.btnrow{display:flex;gap:6px;flex-wrap:wrap}
-.btn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:var(--ui);font-size:14px;padding:7px 11px;border-radius:2px;cursor:pointer}
-.btn:hover{color:var(--text);border-color:#33475a}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#151007;font-weight:600}
-
-
-.switches{display:flex;flex-direction:column;gap:1px}
-.sw{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 2px;font-size:14px;color:var(--text-dim);cursor:pointer;user-select:none}
-.sw:hover{color:var(--text)}
+/* ── toggle switches ──────────────────────────────────── */
+.switches{display:flex;flex-direction:column;gap:0}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:40px;padding:4px 0;font-size:16px;color:var(--ink-2);cursor:pointer;user-select:none}
+.sw:hover{color:var(--ink)}
 .sw input{position:absolute;opacity:0;width:0;height:0}
-.track{width:34px;height:18px;border-radius:9px;background:#1d2a35;border:1px solid #2d3f50;position:relative;flex:0 0 auto;transition:background .15s,border-color .15s}
-.track::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#64798a;transition:transform .15s,background .15s}
-.sw input:checked + .track{background:rgba(240,169,60,.3);border-color:var(--accent)}
-.sw input:checked + .track::after{transform:translateX(16px);background:var(--accent)}
+.track{width:40px;height:23px;border-radius:12px;background:#d9d4cb;border:1px solid #cbc5ba;
+  position:relative;flex:0 0 auto;transition:background .15s,border-color .15s}
+.track::after{content:'';position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.sw input:checked + .track{background:var(--accent);border-color:var(--accent)}
+.sw input:checked + .track::after{transform:translateX(17px)}
 .sw input:focus-visible + .track{outline:2px solid var(--accent);outline-offset:2px}
-.sw.master{border-bottom:1px solid var(--line-soft);margin-bottom:5px;padding-bottom:8px;color:var(--text);font-weight:500}
-.sw.off{opacity:.45}
-.stage{padding:24px 28px 60px;overflow-x:auto}
-.viewhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:0 0 12px}
-.viewhead h2{font-size:19px;font-weight:600;margin:0}
-.viewhead p{margin:0;color:var(--text-dim);font-size:14px}
-.board{border:1px solid var(--line);border-radius:3px;overflow:hidden;transition:background .3s}
+.sw.master{border-bottom:1px solid var(--line-soft);margin-bottom:4px;padding-bottom:9px;
+  color:var(--ink);font-weight:600}
+.sw.off{opacity:.42}
+
+/* ── fields ───────────────────────────────────────────── */
+.field{display:flex;align-items:center;gap:11px}
+.field input[type=text]{width:96px;min-height:40px;background:var(--card-2);
+  border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:17px;
+  letter-spacing:.06em;padding:7px 10px;border-radius:7px;text-transform:uppercase}
+.field span{font-size:15px;color:var(--ink-3)}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+
+/* ── readout ──────────────────────────────────────────── */
+.readout{border:1px solid var(--line);border-radius:8px;background:var(--card-2);padding:13px 14px}
+.rline{display:flex;justify-content:space-between;gap:12px;font-size:15px;padding:4px 0}
+.rline + .rline{border-top:1px solid var(--line-soft)}
+.rline span:first-child{color:var(--ink-3)}
+.rline span:last-child{font-family:var(--mono);font-size:13px;text-align:right;color:var(--ink)}
+.advice{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);
+  font-size:15px;color:var(--ink-2)}
+.advice b{color:var(--ink);font-weight:600}
+.alert{margin-top:10px;padding:10px 12px;border-radius:7px;background:#fdeee9;
+  border-left:3px solid var(--warn);font-size:15px;color:#7c2a17}
+.alert b{color:#5d1e10}
+.ok{margin-top:10px;padding:10px 12px;border-radius:7px;background:#e9f6ee;
+  border-left:3px solid var(--good);font-size:15px;color:#1a5c3a}
+
+/* ── buttons ──────────────────────────────────────────── */
+.btnrow{display:flex;gap:7px;flex-wrap:wrap}
+.btn{background:var(--card-2);border:1px solid var(--line);color:var(--ink-2);
+  font-family:var(--ui);font-size:15px;min-height:40px;padding:8px 13px;border-radius:7px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── stage ────────────────────────────────────────────── */
+.stage{min-width:0}
+.section{margin-bottom:26px}
+.viewhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:0 0 11px}
+.viewhead h2{font-size:21px;font-weight:600;margin:0;color:var(--ink)}
+.viewhead p{margin:0;color:var(--ink-3);font-size:15px}
+.board{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);transition:background .3s}
 .board.night{background:#05080b}
-.board.day{background:#5f6a55}
+.board.day{background:#7d886e}
+.scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
 svg{display:block;width:100%;height:auto}
-#scene{max-width:960px;margin:0 auto}
-.section{margin-bottom:30px}
+#scene{max-width:980px;margin:0 auto}
 
-.legend{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 22px;max-width:1000px}
-.legend div{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--text-dim)}
-.legend b{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.legend{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:7px 24px;max-width:1040px}
+.legend div{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-2)}
+.legend b{width:11px;height:11px;border-radius:50%;flex:0 0 auto;
+  box-shadow:0 0 0 1px rgba(19,36,48,.15)}
 
-@media (max-width:920px){
-  .shell{grid-template-columns:1fr}
-  .rail{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
-  .stage{padding:20px 14px 40px}
+.hint{display:none;margin:8px 0 0;font-size:14px;color:var(--ink-3)}
+
+/* ── mobile ───────────────────────────────────────────── */
+@media (max-width:980px){
+  body{font-size:17px}
+  .topbar{padding:15px 16px}
+  .topbar h1{font-size:22px}
+  .topbar p{font-size:14px}
+  .shell{grid-template-columns:1fr;gap:18px;padding:16px 14px 56px}
+  .stage{order:1}
+  .rail{order:2;position:static;max-height:none;overflow:visible;padding-right:0}
+  .checks{grid-template-columns:1fr 1fr}
+  .legend{grid-template-columns:1fr;max-width:none}
+  .hint{display:block}
+  /* keep the diagrams legible: scroll them sideways rather than shrink to nothing */
+  #scene{min-width:660px}
+  #pilot{min-width:520px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+@media (max-width:420px){
+  .checks{grid-template-columns:1fr}
+  .seg button{min-width:0;font-size:14px;padding:7px 3px}
+  #scene{min-width:580px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<header class="topbar">
+  <div class="topbar-in">
+    <h1>Approach and runway lighting</h1>
+    <p>Plan view and cockpit view — ICAO and FAA systems, CAT I to CAT III</p>
+  </div>
+</header>
+
 <div class="shell">
 
   <aside class="rail">
-    <div class="masthead">
-      <h1>Approach and runway lighting</h1>
-      <p>Plan view and cockpit view, ICAO and FAA systems</p>
-    </div>
 
-    <div class="block">
-      <h2>Time of day</h2>
+    <details class="block" open>
+      <summary>Time of day</summary>
       <div class="seg" id="segDay">
         <button data-v="night" aria-pressed="true">Night</button>
         <button data-v="day" aria-pressed="false">Day</button>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Approach lighting system</h2>
+    <details class="block" open>
+      <summary>Approach lighting system</summary>
       <select id="selAls">
         <option value="icaoCat1">ICAO precision — CAT I</option>
         <option value="icaoCat23" selected>ICAO precision — CAT II / III</option>
@@ -135,29 +237,29 @@ svg{display:block;width:100%;height:auto}
         <option value="alsf2">FAA ALSF-2</option>
         <option value="malsr">FAA MALSR</option>
       </select>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Operating category</h2>
+    <details class="block" open>
+      <summary>Operating category</summary>
       <div class="seg" id="segCat">
         <button data-v="I" aria-pressed="false">CAT I</button>
         <button data-v="II" aria-pressed="false">CAT II</button>
         <button data-v="IIIA" aria-pressed="true">IIIA</button>
         <button data-v="IIIB" aria-pressed="false">IIIB</button>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Glide slope indicator</h2>
+    <details class="block" open>
+      <summary>Glide slope indicator</summary>
       <div class="seg" id="segGsi">
         <button data-v="papi" aria-pressed="true">PAPI</button>
         <button data-v="vasi" aria-pressed="false">VASI</button>
         <button data-v="none" aria-pressed="false">None</button>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Where you are on the slope</h2>
+    <details class="block" open>
+      <summary>Where you are on the slope</summary>
       <div class="papi-list" id="papiList">
         <button data-v="high" aria-pressed="false"><span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i></span>Too high <span class="papi-angle">3.7°</span></button>
         <button data-v="slightHigh" aria-pressed="false"><span class="chip"><i class="w"></i><i class="w"></i><i class="w"></i><i class="r"></i></span>Slightly high <span class="papi-angle">3.2°</span></button>
@@ -165,32 +267,32 @@ svg{display:block;width:100%;height:auto}
         <button data-v="slightLow" aria-pressed="false"><span class="chip"><i class="w"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>Slightly low <span class="papi-angle">2.8°</span></button>
         <button data-v="low" aria-pressed="false"><span class="chip"><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span>Too low <span class="papi-angle">2.3°</span></button>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Eye height above the runway</h2>
+    <details class="block" open>
+      <summary>Eye height above the runway</summary>
       <div class="seg" id="segEye">
         <button data-v="61" aria-pressed="true">200 ft</button>
         <button data-v="30.5" aria-pressed="false">100 ft</button>
         <button data-v="15" aria-pressed="false">50 ft</button>
         <button data-v="6" aria-pressed="false">20 ft</button>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Runway visual range — <em id="rvrTag">unrestricted</em></h2>
+    <details class="block" open>
+      <summary>Runway visual range — <em id="rvrTag">unrestricted</em></summary>
       <input type="range" id="rvr" min="0" max="7" step="1" value="0">
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Low visibility procedures</h2>
+    <details class="block" open>
+      <summary>Low visibility procedures</summary>
       <div class="checks one">
         <label><input type="checkbox" id="lvp"> Stop bars, guard lights and CAT II/III hold</label>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Unserviceabilities</h2>
+    <details class="block" open>
+      <summary>Unserviceabilities</summary>
       <div class="checks fail" id="fails">
         <label><input type="checkbox" data-k="approach"> Approach</label>
         <label><input type="checkbox" data-k="tdz"> Touchdown zone</label>
@@ -199,10 +301,10 @@ svg{display:block;width:100%;height:auto}
         <label><input type="checkbox" data-k="rvrSys"> RVR readout</label>
         <label><input type="checkbox" data-k="stopbar"> Stop bars</label>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Lighting control</h2>
+    <details class="block" open>
+      <summary>Lighting control</summary>
       <div class="switches" id="switches">
         <label class="sw master"><span>Master — airfield lighting</span><input type="checkbox" data-c="master" checked><span class="track"></span></label>
         <label class="sw"><span>Approach system</span><input type="checkbox" data-c="approach" checked><span class="track"></span></label>
@@ -216,10 +318,10 @@ svg{display:block;width:100%;height:auto}
         <label class="sw"><span>Stop bars</span><input type="checkbox" data-c="stopbar" checked><span class="track"></span></label>
         <label class="sw"><span>REIL</span><input type="checkbox" data-c="reil"><span class="track"></span></label>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Show</h2>
+    <details class="block" open>
+      <summary>Show</summary>
       <div class="checks" id="checks">
         <label><input type="checkbox" data-k="taxiway" checked> Taxiway pavement</label>
         <label><input type="checkbox" data-k="markings" checked> Paint</label>
@@ -228,18 +330,18 @@ svg{display:block;width:100%;height:auto}
         <label><input type="checkbox" data-k="ruler" checked> Distance ruler</label>
         <label><input type="checkbox" data-k="cockpit" checked> Cockpit view</label>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Runway designator</h2>
+    <details class="block" open>
+      <summary>Runway designator</summary>
       <div class="field">
         <input type="text" id="desig" value="09L" maxlength="3" spellcheck="false">
         <span>Number and side letter</span>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Readout</h2>
+    <details class="block" open>
+      <summary>Readout</summary>
       <div class="readout">
         <div class="rline"><span>Approach system</span><span id="roSys">—</span></div>
         <div class="rline"><span>Decision height</span><span id="roDh">—</span></div>
@@ -248,15 +350,15 @@ svg{display:block;width:100%;height:auto}
         <div class="advice" id="roAdvice"></div>
         <div id="roStatus"></div>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h2>Export</h2>
+    <details class="block" open>
+      <summary>Export</summary>
       <div class="btnrow">
         <button class="btn" id="pngPlan">Save plan view</button>
         <button class="btn" id="pngPilot">Save cockpit view</button>
       </div>
-    </div>
+    </details>
   </aside>
 
   <main class="stage">
@@ -267,8 +369,9 @@ svg{display:block;width:100%;height:auto}
         <p>3000 m runway, 45 m wide. Lateral scale exaggerated so the fixtures stay readable.</p>
       </div>
       <div class="board night" id="boardPlan">
-        <svg id="scene" viewBox="0 0 960 1070" role="img" aria-label="Plan view of the approach and runway lighting"></svg>
+        <div class="scroller"><svg id="scene" viewBox="0 0 960 1070" role="img" aria-label="Plan view of the approach and runway lighting"></svg></div>
       </div>
+      <p class="hint">Swipe the diagram sideways to see the full width.</p>
       <div class="legend">
         <div><b style="background:#fff3d8"></b> White — approach, centreline, touchdown zone, edge</div>
         <div><b style="background:#ff3b30"></b> Red — side rows, last 300 m, runway end, stop bar</div>
@@ -286,7 +389,7 @@ svg{display:block;width:100%;height:auto}
         <p id="pilotSub">What the same lighting looks like from the flight deck.</p>
       </div>
       <div class="board night" id="boardPilot">
-        <svg id="pilot" viewBox="0 0 880 440" role="img" aria-label="Cockpit view of the approach lighting"></svg>
+        <div class="scroller"><svg id="pilot" viewBox="0 0 880 440" role="img" aria-label="Cockpit view of the approach lighting"></svg></div>
       </div>
     </section>
 
@@ -564,15 +667,15 @@ function renderPlan(){
 
 function drawGround(night){
   const g = group('ground');
-  el('rect',{x:0,y:0,width:960,height:1070,fill: night?'#05080b':'#5f6a55'},g);
+  el('rect',{x:0,y:0,width:960,height:1070,fill: night?'#05080b':'#7d886e'},g);
   if (state.lvp){  // ILS sensitive area
     el('rect',{x:X(-SENS_X),y:Y(RWY_LEN),width:SENS_X*2*SX,height:(RWY_LEN+900)*SY,
-               fill: night?'#0b1219':'#6a7560',opacity:0.55},g);
+               fill: night?'#0b1219':'#8b9779',opacity:0.55},g);
   }
   el('rect',{x:X(-HALF_W),y:Y(RWY_LEN),width:HALF_W*2*SX,height:RWY_LEN*SY,
-             fill: night?'#0e141a':'#54585b'},g);
+             fill: night?'#0e141a':'#6b7175'},g);
   el('rect',{x:X(-HALF_W),y:Y(0),width:HALF_W*2*SX,height:900*SY,
-             fill: night?'#080c10':'#5a6351',opacity:0.7},g);
+             fill: night?'#080c10':'#767f68',opacity:0.7},g);
   if (state.show.taxiway){
     const fill = night?'#0e141a':'#54585b';
     const paths = [NET.parallel].concat(NET.links.map(leadPath));
@@ -918,9 +1021,9 @@ function renderPilot(){
   const sys = ALS[state.als];
 
   // sky and ground
-  el('rect',{x:0,y:0,width:PV.W,height:PV.cy,fill: night?'#070c12':'#8d9aa5'},pv);
-  el('rect',{x:0,y:PV.cy,width:PV.W,height:PV.H-PV.cy,fill: night?'#04070a':'#59634b'},pv);
-  el('line',{x1:0,y1:PV.cy,x2:PV.W,y2:PV.cy,stroke: night?'#16222c':'#7d8a76','stroke-width':1},pv);
+  el('rect',{x:0,y:0,width:PV.W,height:PV.cy,fill: night?'#070c12':'#a9bcc9'},pv);
+  el('rect',{x:0,y:PV.cy,width:PV.W,height:PV.H-PV.cy,fill: night?'#04070a':'#75815f'},pv);
+  el('line',{x1:0,y1:PV.cy,x2:PV.W,y2:PV.cy,stroke: night?'#16222c':'#97a48c','stroke-width':1},pv);
 
   const surf = group('pvsurf', pv);
   const marks = group('pvmarks', pv);
@@ -930,10 +1033,10 @@ function renderPilot(){
   for (let d=0; d<RWY_LEN; d+=60){
     const q = quad(-HALF_W,d, HALF_W,d, HALF_W,d+60, -HALF_W,d+60, eye);
     if (!q) continue;
-    el('polygon',{points:q, fill: night?'#0d1319':'#53575a', opacity: 0.35+0.65*fogAlpha(dist(d,eye))},surf);
+    el('polygon',{points:q, fill: night?'#0d1319':'#6a7074', opacity: 0.35+0.65*fogAlpha(dist(d,eye))},surf);
   }
   if (state.show.taxiway){
-    const tf = night?'#0b1117':'#4e5256';
+    const tf = night?'#0b1117':'#646a6e';
     taxiPolys().forEach(function(poly){
       const q = projPoly(poly, eye);
       if (q) el('polygon',{points:q, fill:tf, opacity:0.35+0.65*fogAlpha(Math.abs(poly[0][1]-eye.y))},surf);
@@ -1223,10 +1326,10 @@ function savePng(node, w, h, name, bg){
   img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
 }
 document.getElementById('pngPlan').addEventListener('click', function(){
-  savePng(svg, 960, 1070, 'runway-plan.png', state.mode==='night' ? '#05080b' : '#5f6a55');
+  savePng(svg, 960, 1070, 'runway-plan.png', state.mode==='night' ? '#05080b' : '#7d886e');
 });
 document.getElementById('pngPilot').addEventListener('click', function(){
-  savePng(pv, PV.W, PV.H, 'cockpit-view.png', state.mode==='night' ? '#04070a' : '#59634b');
+  savePng(pv, PV.W, PV.H, 'cockpit-view.png', state.mode==='night' ? '#04070a' : '#75815f');
 });
 
 /* ═══════════ controls ═══════════ */
@@ -1287,6 +1390,9 @@ document.getElementById('rvr').addEventListener('input', function(e){
 });
 
 syncSwitches();
+if (window.matchMedia('(max-width: 980px)').matches){
+  document.querySelectorAll('details.block').forEach(function(d,i){ if (i > 1) d.open = false; });
+}
 redraw();
 })();
 </script>
